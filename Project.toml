@@ -1,0 +1,4 @@
+name = "GenoNet"
+uuid = "4ea25e07-aad3-4853-8f16-d4fbec99a2bb"
+authors = ["chiahungyang <yang.chi@husky.neu.edu>"]
+version = "0.1.0"
