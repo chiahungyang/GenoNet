@@ -38,4 +38,48 @@ using GenoNet: PathwayFramework
         end
     end
 
+    @testset "Proteins" begin
+        ps = [1, 3, 2, 4]
+        nin = 1
+        nout = 1
+        @testset "Constructors" begin
+            prtns = Proteins{Int}(ps, Dict(1 => 1, 3 => 2, 2 => 3, 4 => 4), nin, nout)
+            prtns_srt = Proteins{Int}(sort(ps), Dict(1 => 1, 2 => 2, 3 => 3, 4 => 4), nin, nout)
+            @test Proteins(ps, nin, nout) == prtns
+            @test Proteins(ps[begin:begin+nin-1], ps[end-nout+1:end], ps[begin+nin:end-nout]) == prtns
+            @test Proteins(Set(ps[begin:end-nout]), Set(ps[begin+nin:end])) == prtns_srt
+            @test_throws DomainError Proteins([1, 2, 2, 4], nin, nout)
+        end
+        @testset "Array interface" begin
+            prtns = Proteins(ps, nin, nout)
+            @test size(prtns) == (4,)
+            @test prtns[2] == 3
+            @test_throws ErrorException prtns[2] = 5
+            @test_throws ErrorException similar(prtns)
+            @test length(prtns) == 4
+            @test 3 in prtns
+            @test 5 ∉ prtns
+            @test [p for p in prtns] == [1, 3, 2, 4]
+            @test collect(prtns) == [1, 3, 2, 4]
+            @test prtns[begin] == 1
+            @test prtns[2:end] == [3, 2, 4]
+            @test_throws BoundsError prtns[-1]
+            @test_throws ErrorException copy(prtns)
+        end
+        @testset "Other methods" begin
+            prtns = Proteins(ps, nin, nout)
+            @test prtns === prtns
+            @test prtns !== Proteins(ps, nin, nout)
+            @test prtns != ps
+            @test prtns != "array"
+            @test index(prtns, 3) == 2
+            @test_throws KeyError index(prtns, 5)
+            @test_throws MethodError index(prtns, '5')
+            @test input(prtns) == [1,]
+            @test output(prtns) == [4,]
+            @test activators(prtns) == [1, 3, 2]
+            @test products(prtns) == [3, 2, 4]
+        end
+    end
+
 end
