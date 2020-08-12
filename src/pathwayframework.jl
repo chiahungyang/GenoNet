@@ -8,23 +8,24 @@ export index, input, output, activators, products, proteins, state
 # Concrete implementation of a collection of genes
 
 """
-    Genes{T} <: AbstractArray{T, 1}
+    Genes{G} <: AbstractArray{G, 1}
 
-Immutable, array-like collection of unique loci with fast access to elements' indices.
+Immutable, array-like collection of unique loci of type `G` with fast access to elements'
+indices.
 """
-struct Genes{T} <: AbstractArray{T, 1}
+struct Genes{G} <: AbstractArray{G, 1}
     "genes/loci"
-    gs::Vector{T}
+    gs::Vector{G}
     "indices of loci"
-    inds::Dict{T, Int}
+    inds::Dict{G, Int}
 
     "constructor asserting the uniqueness of loci"
-    function Genes{T}(gs, inds) where {T}
+    function Genes{G}(gs, inds) where {G}
         allunique(gs) || throw(DomainError(gs, "loci must be all unique"))
         return new(gs, inds)
     end
 end
-Genes(gs::Vector{T}, inds::Dict{T, Int}) where {T} = Genes{T}(gs, inds)
+Genes(gs::Vector{G}, inds::Dict{G, Int}) where {G} = Genes{G}(gs, inds)
 
 """
     Genes(gs::Vector)
@@ -55,20 +56,20 @@ function Base.:(==)(genes::Genes, other::Genes)
 end
 
 """
-    index(genes::Genes{T}, g::T)::Int where {T}
+    index(genes::Genes{G}, g::G)::Int where {G}
 
 Return the index of locus `g` in `genes`.
 """
-function index(genes::Genes{T}, g::T)::Int where {T}
+function index(genes::Genes{G}, g::G)::Int where {G}
     return genes.inds[g]
 end
 
 """
-    index(genes::Genes{T}, gs::Vector{T})::Vector{Int} where {T}
+    index(genes::Genes{G}, gs::Vector{G})::Vector{Int} where {G}
 
 Return the index of loci `gs` in `genes`.
 """
-function index(genes::Genes{T}, gs::Vector{T})::Vector{Int} where {T}
+function index(genes::Genes{G}, gs::Vector{G})::Vector{Int} where {G}
     return [genes.inds[g] for g in gs]
 end
 
@@ -77,28 +78,29 @@ end
 # Concrete implementation of a collection of proteins
 
 """
-    Proteins{T} <: AbstractArray{T, 1}
+    Proteins{P} <: AbstractArray{P, 1}
 
-Immutable, array-like collection of unique proteins with fast access to elements' indices.
+Immutable, array-like collection of unique proteins of type `P` with fast access to
+elements' indices.
 """
-struct Proteins{T} <: AbstractArray{T, 1}
+struct Proteins{P} <: AbstractArray{P, 1}
     "proteins"
-    ps::Vector{T}
+    ps::Vector{P}
     "indices of proteins"
-    inds::Dict{T, Int}
+    inds::Dict{P, Int}
     "number of input proteins, which can only be driven by external stimuli"
     nin::Int
     "number of output proteins, which can only be driven by internal regulation"
     nout::Int
 
     "constructor asserting the uniqueness of proteins"
-    function Proteins{T}(ps, inds, nin, nout) where {T}
+    function Proteins{P}(ps, inds, nin, nout) where {P}
         allunique(ps) || throw(DomainError(ps, "proteins must be all unique"))
         return new(ps, inds, nin, nout)
     end
 end
-function Proteins(ps::Vector{T}, inds::Dict{T, Int}, nin::Int, nout::Int) where {T}
-    return Proteins{T}(ps, inds, nin, nout)
+function Proteins(ps::Vector{P}, inds::Dict{P, Int}, nin::Int, nout::Int) where {P}
+    return Proteins{P}(ps, inds, nin, nout)
 end
 
 """
@@ -113,23 +115,23 @@ function Proteins(ps::Vector, nin::Int, nout::Int)
 end
 
 """
-    Proteins(psin::Vector{T}, psout::Vector{T}, pselse::Vector{T}) where {T}
+    Proteins(psin::Vector{P}, psout::Vector{P}, pselse::Vector{P}) where {P}
 
 Construct a Proteins object by concatenating the input, remaining, and output proteins.
 """
-function Proteins(psin::Vector{T}, psout::Vector{T}, pselse::Vector{T}) where {T}
+function Proteins(psin::Vector{P}, psout::Vector{P}, pselse::Vector{P}) where {P}
     return Proteins([psin; pselse; psout], length(psin), length(psout))
 end
 
 """
-    Proteins(actvs::Set{T}, prods::Set{T}) where {T}
+    Proteins(actvs::Set{P}, prods::Set{P}) where {P}
 
 Construct a Proteins object from the collections of protein activators and products.
 
 The input, remaining, and output proteins are sorted ascendently and then concatenated
 in order.
 """
-function Proteins(actvs::Set{T}, prods::Set{T}) where {T}
+function Proteins(actvs::Set{P}, prods::Set{P}) where {P}
     psin = sort(collect(setdiff(actvs, prods)))
     psout = sort(collect(setdiff(prods, actvs)))
     pselse = sort(collect(intersect(actvs, prods)))
@@ -151,56 +153,56 @@ function Base.:(==)(prtns::Proteins, other::Proteins)
 end
 
 """
-    index(prtns::Proteins{T}, p::T)::Int where {T}
+    index(prtns::Proteins{P}, p::P)::Int where {P}
 
 Return the index of protein `p` in `prtns`.
 """
-function index(prtns::Proteins{T}, p::T)::Int where {T}
+function index(prtns::Proteins{P}, p::P)::Int where {P}
     return prtns.inds[p]
 end
 
 """
-    index(prtns::Proteins{T}, p::Vector{T})::Vector{Int} where {T}
+    index(prtns::Proteins{P}, p::Vector{P})::Vector{Int} where {P}
 
 Return the indices of proteins `ps` in `prtns`.
 """
-function index(prtns::Proteins{T}, ps::Vector{T})::Vector{Int} where {T}
+function index(prtns::Proteins{P}, ps::Vector{P})::Vector{Int} where {P}
     return [prtns.inds[p] for p in ps]
 end
 
 """
-    input(prtns::Proteins{T})::Vector{T} where {T}
+    input(prtns::Proteins{P})::Vector{P} where {P}
 
 Return the input proteins in the protein collection `prtns`.
 """
-function input(prtns::Proteins{T})::Vector{T} where {T}
+function input(prtns::Proteins{P})::Vector{P} where {P}
     return prtns.ps[begin:begin+prtns.nin-1]
 end
 
 """
-    output(prtns::Proteins{T})::Vector{T} where {T}
+    output(prtns::Proteins{P})::Vector{P} where {P}
 
 Return the output proteins in the protein collection `prtns`.
 """
-function output(prtns::Proteins{T})::Vector{T} where {T}
+function output(prtns::Proteins{P})::Vector{P} where {P}
     return prtns.ps[end-prtns.nout+1:end]
 end
 
 """
-    activators(prtns::Proteins{T})::Vector{T} where {T}
+    activators(prtns::Proteins{P})::Vector{P} where {P}
 
 Return those that can serve as expression activators in the protein collection `prtns`.
 """
-function activators(prtns::Proteins{T})::Vector{T} where {T}
+function activators(prtns::Proteins{P})::Vector{P} where {P}
     return prtns.ps[begin:end-prtns.nout]
 end
 
 """
-    products(prtns::Proteins{T})::Vector{T} where {T}
+    products(prtns::Proteins{P})::Vector{P} where {P}
 
 Return those that can serve as expression products in the protein collection `prtns`.
 """
-function products(prtns::Proteins{T})::Vector{T} where {T}
+function products(prtns::Proteins{P})::Vector{P} where {P}
     return prtns.ps[begin+prtns.nin:end]
 end
 
@@ -209,25 +211,25 @@ end
 # Abstract interface of a phenotype
 
 """
-    AbstractPhenotype{T, S}
+    AbstractPhenotype{P, S}
 
-Phenotype as a collective, `S`-typed chemical state of proteins of type `T`.
+Phenotype as a collective, `S`-typed chemical state of proteins of type `P`.
 
 # Implementation
 Any custom subtype of `AbstractPhenotype` should implement methods of the
 [`proteins`](@ref) and [`state`](@ref) functions.
 """
-abstract type AbstractPhenotype{T, S} end
+abstract type AbstractPhenotype{P, S} end
 
 """
-    proteins(pht::AbstractPhenotype{T, S})::Proteins{T} where {T, S}
+    proteins(pht::AbstractPhenotype{P, S})::Proteins{P} where {P, S}
 
 Return the collection of underlying proteins of phenotype `pht`.
 """
 function proteins end
 
 """
-    state(pht::AbstractPhenotype{T, S}, p::T)::S where {T, S}
+    state(pht::AbstractPhenotype{P, S}, p::P)::S where {P, S}
 
 Return the chemical state of protein `p` in phenotype `pht`.
 """
@@ -237,39 +239,39 @@ function state end
 # Concrete implementation of a phenotype with binary protein states
 
 """
-    BinaryPhenotype{T} <: AbstractPhenotype{T, Bool}
+    BinaryPhenotype{P} <: AbstractPhenotype{P, Bool}
 
-Implementation of a phenotype where the state of a protein of type `T` is binary.
+Implementation of a phenotype where the state of a protein of type `P` is binary.
 
 A protein is either present due to external stumili/internal regulation or otherwise
 absent.
 """
-struct BinaryPhenotype{T} <: AbstractPhenotype{T, Bool}
+struct BinaryPhenotype{P} <: AbstractPhenotype{P, Bool}
     "proteins"
-    ps::Proteins{T}
+    ps::Proteins{P}
     "state of proteins"
     st::BitVector
 end
 
-function proteins(pht::BinaryPhenotype{T})::Proteins{T} where {T}
+function proteins(pht::BinaryPhenotype{P})::Proteins{P} where {P}
     return pht.ps
 end
 
 """
-    state(pht::BinaryPhenotype{T}, p::T)::Bool
+    state(pht::BinaryPhenotype{P}, p::P)::Bool
 
 Return whether protein `p` is present or absent in phenotype `pht`.
 """
-function state(pht::BinaryPhenotype{T}, p::T)::Bool where {T}
+function state(pht::BinaryPhenotype{P}, p::P)::Bool where {P}
     return pht.st[index(proteins(pht), p)]
 end
 
 """
-    state(pht::BinaryPhenotype{T}, ps::Vector{T})::BitVector
+    state(pht::BinaryPhenotype{P}, ps::Vector{P})::BitVector
 
 Return whether each protein in `ps` is present or absent in phenotype `pht`.
 """
-function state(pht::BinaryPhenotype{T}, ps::Vector{T})::BitVector where {T}
+function state(pht::BinaryPhenotype{P}, ps::Vector{P})::BitVector where {P}
     return pht.st[index(proteins(pht), ps)]
 end
 
