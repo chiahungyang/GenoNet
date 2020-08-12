@@ -1,12 +1,15 @@
 module PathwayFramework
 
-export Genes, Proteins, index, input, output, activators, products
+export Genes, Proteins, AbstractPhenotype, BinaryPhenotype
+export index, input, output, activators, products, proteins, state
 
 
 # ----------------------------------------------------------------
 # Concrete implementation of a collection of genes
 
 """
+    Genes{T} <: AbstractArray{T, 1}
+
 Immutable, array-like collection of unique loci with fast access to elements' indices.
 """
 struct Genes{T} <: AbstractArray{T, 1}
@@ -60,11 +63,22 @@ function index(genes::Genes{T}, g::T)::Int where {T}
     return genes.inds[g]
 end
 
+"""
+    index(genes::Genes{T}, gs::Vector{T})::Vector{Int} where {T}
+
+Return the index of loci `gs` in `genes`.
+"""
+function index(genes::Genes{T}, gs::Vector{T})::Vector{Int} where {T}
+    return [genes.inds[g] for g in gs]
+end
+
 
 # ----------------------------------------------------------------
 # Concrete implementation of a collection of proteins
 
 """
+    Proteins{T} <: AbstractArray{T, 1}
+
 Immutable, array-like collection of unique proteins with fast access to elements' indices.
 """
 struct Proteins{T} <: AbstractArray{T, 1}
@@ -72,7 +86,7 @@ struct Proteins{T} <: AbstractArray{T, 1}
     ps::Vector{T}
     "indices of proteins"
     inds::Dict{T, Int}
-    "number of input proteins, which can only be driven by externel stimuli"
+    "number of input proteins, which can only be driven by external stimuli"
     nin::Int
     "number of output proteins, which can only be driven by internal regulation"
     nout::Int
@@ -146,6 +160,15 @@ function index(prtns::Proteins{T}, p::T)::Int where {T}
 end
 
 """
+    index(prtns::Proteins{T}, p::Vector{T})::Vector{Int} where {T}
+
+Return the indices of proteins `ps` in `prtns`.
+"""
+function index(prtns::Proteins{T}, ps::Vector{T})::Vector{Int} where {T}
+    return [prtns.inds[p] for p in ps]
+end
+
+"""
     input(prtns::Proteins{T})::Vector{T} where {T}
 
 Return the input proteins in the protein collection `prtns`.
@@ -179,6 +202,75 @@ Return those that can serve as expression products in the protein collection `pr
 """
 function products(prtns::Proteins{T})::Vector{T} where {T}
     return prtns.ps[begin+prtns.nin:end]
+end
+
+
+# ----------------------------------------------------------------
+# Abstract interface of a phenotype
+
+"""
+    AbstractPhenotype{T, S}
+
+Phenotype as a collective, `S`-typed chemical state of proteins of type `T`.
+
+# Implementation
+Any custom subtype of `AbstractPhenotype` should implement methods of the
+[`proteins`](@ref) and [`state`](@ref) functions.
+"""
+abstract type AbstractPhenotype{T, S} end
+
+"""
+    proteins(pht::AbstractPhenotype{T, S})::Proteins{T} where {T, S}
+
+Return the collection of underlying proteins of phenotype `pht`.
+"""
+function proteins end
+
+"""
+    state(pht::AbstractPhenotype{T, S}, p::T)::S where {T, S}
+
+Return the chemical state of protein `p` in phenotype `pht`.
+"""
+function state end
+
+# ----------------------------------------------------------------
+# Concrete implementation of a phenotype with binary protein states
+
+"""
+    BinaryPhenotype{T} <: AbstractPhenotype{T, Bool}
+
+Implementation of a phenotype where the state of a protein of type `T` is binary.
+
+A protein is either present due to external stumili/internal regulation or otherwise
+absent.
+"""
+struct BinaryPhenotype{T} <: AbstractPhenotype{T, Bool}
+    "proteins"
+    ps::Proteins{T}
+    "state of proteins"
+    st::BitVector
+end
+
+function proteins(pht::BinaryPhenotype{T})::Proteins{T} where {T}
+    return pht.ps
+end
+
+"""
+    state(pht::BinaryPhenotype{T}, p::T)::Bool
+
+Return whether protein `p` is present or absent in phenotype `pht`.
+"""
+function state(pht::BinaryPhenotype{T}, p::T)::Bool where {T}
+    return pht.st[index(proteins(pht), p)]
+end
+
+"""
+    state(pht::BinaryPhenotype{T}, ps::Vector{T})::BitVector
+
+Return whether each protein in `ps` is present or absent in phenotype `pht`.
+"""
+function state(pht::BinaryPhenotype{T}, ps::Vector{T})::BitVector where {T}
+    return pht.st[index(proteins(pht), ps)]
 end
 
 # ----------------------------------------------------------------

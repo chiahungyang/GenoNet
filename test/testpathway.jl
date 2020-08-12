@@ -33,8 +33,11 @@ using GenoNet: PathwayFramework
             @test genes != gs
             @test genes != "array"
             @test index(genes, 3) == 2
+            @test index(genes, [2, 3]) == [3, 2]
             @test_throws KeyError index(genes, 4)
-            @test_throws MethodError index(genes, '4')
+            @test_throws MethodError index(genes, '3')
+            @test_throws KeyError index(genes, [2, 4])
+            @test_throws MethodError index(genes, ['2', '3'])
         end
     end
 
@@ -73,13 +76,30 @@ using GenoNet: PathwayFramework
             @test prtns != ps
             @test prtns != "array"
             @test index(prtns, 3) == 2
+            @test index(prtns, [2, 3]) == [3, 2]
             @test_throws KeyError index(prtns, 5)
-            @test_throws MethodError index(prtns, '5')
+            @test_throws MethodError index(prtns, '3')
+            @test_throws KeyError index(prtns, [3, 5])
+            @test_throws MethodError index(prtns, ['2', '3'])
             @test input(prtns) == [1,]
             @test output(prtns) == [4,]
             @test activators(prtns) == [1, 3, 2]
             @test products(prtns) == [3, 2, 4]
         end
+    end
+
+    @testset "BinaryPhenotype" begin
+        prtns = Proteins([1, 3, 2, 4], 1, 1)
+        st = BitVector([true, false, true, false])
+        pht = BinaryPhenotype(prtns, st)
+        @test proteins(pht) === prtns
+        @test state(pht, 1) == true
+        @test state(pht, 3) == false
+        @test_throws KeyError state(pht, 5)
+        @test_throws MethodError state(pht, '1')
+        @test state(pht, [1, 2, 3]) == BitVector([true, true, false])
+        @test_throws KeyError state(pht, [1, 2, 5])
+        @test_throws MethodError state(pht, ['1', '2', '3'])
     end
 
 end
