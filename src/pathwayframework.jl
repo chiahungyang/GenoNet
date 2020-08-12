@@ -51,8 +51,9 @@ Base.similar(::Genes{G}) where {G} = error("similar not defined for Genes{$G}")
 
 # Overwrite the == operator
 Base.:(==)(genes::Genes, arr::AbstractArray) = false
-Base.:(==)(genes::Genes{G}, other::Genes{G}) where {G} =
+function Base.:(==)(genes::Genes{G}, other::Genes{G}) where {G}
     all(name -> getfield(genes, name) == getfield(other, name), fieldnames(Genes))
+end
 
 """
     index(genes::Genes{G}, g::G)::Int where {G}
@@ -94,8 +95,7 @@ struct Proteins{P} <: AbstractArray{P, 1}
         new(ps, inds, nin, nout)
     end
 end
-Proteins(ps::Vector{P}, inds::Dict{P, Int}, nin::Int, nout::Int) where {P} =
-    Proteins{P}(ps, inds, nin, nout)
+Proteins(ps::Vector{P}, inds::Dict{P, Int}, nin::Int, nout::Int) where {P} = Proteins{P}(ps, inds, nin, nout)
 
 """
     Proteins(ps::Vector, nin::Int, nout::Int)
@@ -114,8 +114,10 @@ end
 
 Construct a Proteins object by concatenating the input, remaining, and output proteins.
 """
-Proteins(psin::Vector{P}, psout::Vector{P}, pselse::Vector{P}) where {P} =
-    Proteins([psin; pselse; psout], length(psin), length(psout))
+Proteins(psin::Vector{P}, psout::Vector{P}, pselse::Vector{P}) where {P} = begin
+    ps = [psin; pselse; psout]
+    Proteins(ps, length(psin), length(psout))
+end
 
 """
     Proteins(actvs::Set{P}, prods::Set{P}) where {P}
@@ -142,8 +144,9 @@ Base.similar(::Proteins{P}) where {P} = error("similar not defined for Proteins{
 
 # Overwrite the == operator
 Base.:(==)(prtns::Proteins, arr::AbstractArray) = false
-Base.:(==)(prtns::Proteins{P}, other::Proteins{P}) where {P} =
+function Base.:(==)(prtns::Proteins{P}, other::Proteins{P}) where {P}
     all(name -> getfield(prtns, name) == getfield(other, name), fieldnames(Proteins))
+end
 
 """
     index(prtns::Proteins{P}, p::P)::Int where {P}
@@ -248,8 +251,7 @@ state(pht::BinaryPhenotype{P}, p::P) where {P} = @inbounds pht.st[index(proteins
 
 Return whether each protein in `ps` is present or absent in phenotype `pht`.
 """
-state(pht::BinaryPhenotype{P}, ps::Vector{P}) where {P} =
-    @inbounds pht.st[index(proteins(pht), ps)]
+state(pht::BinaryPhenotype{P}, ps::Vector{P}) where {P} = @inbounds pht.st[index(proteins(pht), ps)]
 
 # ----------------------------------------------------------------
 
