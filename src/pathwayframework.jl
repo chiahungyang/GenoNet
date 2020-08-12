@@ -219,6 +219,12 @@ Return the chemical state of protein `p` in phenotype `pht`.
 """
 function state end
 
+# Implement pretty printing for AbstractPhenotype
+Base.show(io::IO, ::MIME"text/plain", pht::AbstractPhenotype) = begin
+    print(typeof(pht), ":")
+    foreach(p -> print("\n  ", p => state(pht, p)), proteins(pht))
+end
+
 # ----------------------------------------------------------------
 # Concrete implementation of a phenotype with binary protein states
 
