@@ -52,6 +52,7 @@ using GenoNet: PathwayFramework
             @test Proteins(ps[begin:begin+nin-1], ps[end-nout+1:end], ps[begin+nin:end-nout]) == prtns
             @test Proteins(Set(ps[begin:end-nout]), Set(ps[begin+nin:end])) == prtns_srt
             @test_throws DomainError Proteins([1, 2, 2, 4], nin, nout)
+            @test_throws AssertionError Proteins(ps, 2, 3)
         end
         @testset "Array interface" begin
             prtns = Proteins(ps, nin, nout)

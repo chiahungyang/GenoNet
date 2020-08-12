@@ -20,9 +20,9 @@ struct Genes{G} <: AbstractArray{G, 1}
     inds::Dict{G, Int}
 
     "constructor asserting the uniqueness of loci"
-    function Genes{G}(gs, inds) where {G}
+    Genes{G}(gs, inds) where {G} = begin
         allunique(gs) || throw(DomainError(gs, "loci must be all unique"))
-        return new(gs, inds)
+        new(gs, inds)
     end
 end
 Genes(gs::Vector{G}, inds::Dict{G, Int}) where {G} = Genes{G}(gs, inds)
@@ -47,31 +47,26 @@ Base.IndexStyle(::Type{<:Genes}) = Base.IndexLinear()
 Base.getindex(genes::Genes, i::Integer) = Base.getindex(genes.gs, i)
 
 # Overwrite and disallow the similar method
-Base.similar(genes::Genes) = error("similar not defined for $(typeof(genes))")
+Base.similar(::Genes{G}) where {G} = error("similar not defined for Genes{$G}")
 
 # Overwrite the == operator
 Base.:(==)(genes::Genes, arr::AbstractArray) = false
-function Base.:(==)(genes::Genes, other::Genes)
-    return all(name -> getfield(genes, name) == getfield(other, name), fieldnames(Genes))
-end
+Base.:(==)(genes::Genes{G}, other::Genes{G}) where {G} =
+    all(name -> getfield(genes, name) == getfield(other, name), fieldnames(Genes))
 
 """
     index(genes::Genes{G}, g::G)::Int where {G}
 
 Return the index of locus `g` in `genes`.
 """
-function index(genes::Genes{G}, g::G)::Int where {G}
-    return genes.inds[g]
-end
+index(genes::Genes{G}, g::G) where {G} = genes.inds[g]
 
 """
     index(genes::Genes{G}, gs::Vector{G})::Vector{Int} where {G}
 
-Return the index of loci `gs` in `genes`.
+Return the indices of loci `gs` in `genes`.
 """
-function index(genes::Genes{G}, gs::Vector{G})::Vector{Int} where {G}
-    return [genes.inds[g] for g in gs]
-end
+index(genes::Genes{G}, gs::Vector{G}) where {G} = [genes.inds[g] for g in gs]
 
 
 # ----------------------------------------------------------------
@@ -94,14 +89,13 @@ struct Proteins{P} <: AbstractArray{P, 1}
     nout::Int
 
     "constructor asserting the uniqueness of proteins"
-    function Proteins{P}(ps, inds, nin, nout) where {P}
+    Proteins{P}(ps, inds, nin, nout) where {P} = begin
         allunique(ps) || throw(DomainError(ps, "proteins must be all unique"))
-        return new(ps, inds, nin, nout)
+        new(ps, inds, nin, nout)
     end
 end
-function Proteins(ps::Vector{P}, inds::Dict{P, Int}, nin::Int, nout::Int) where {P}
-    return Proteins{P}(ps, inds, nin, nout)
-end
+Proteins(ps::Vector{P}, inds::Dict{P, Int}, nin::Int, nout::Int) where {P} =
+    Proteins{P}(ps, inds, nin, nout)
 
 """
     Proteins(ps::Vector, nin::Int, nout::Int)
@@ -110,8 +104,9 @@ Construct a Proteins object in the order of the input, remaining, and output pro
 
 The indices of proteins are pre-computed.
 """
-function Proteins(ps::Vector, nin::Int, nout::Int)
-    return Proteins(ps, Dict(p => i for (i, p) in Iterators.enumerate(ps)), nin, nout)
+Proteins(ps::Vector, nin::Int, nout::Int) = begin
+    nin + nout <= length(ps) || throw(AssertionError("too many input/output proteins"))
+    Proteins(ps, Dict(p => i for (i, p) in Iterators.enumerate(ps)), nin, nout)
 end
 
 """
@@ -119,9 +114,8 @@ end
 
 Construct a Proteins object by concatenating the input, remaining, and output proteins.
 """
-function Proteins(psin::Vector{P}, psout::Vector{P}, pselse::Vector{P}) where {P}
-    return Proteins([psin; pselse; psout], length(psin), length(psout))
-end
+Proteins(psin::Vector{P}, psout::Vector{P}, pselse::Vector{P}) where {P} =
+    Proteins([psin; pselse; psout], length(psin), length(psout))
 
 """
     Proteins(actvs::Set{P}, prods::Set{P}) where {P}
@@ -131,11 +125,11 @@ Construct a Proteins object from the collections of protein activators and produ
 The input, remaining, and output proteins are sorted ascendently and then concatenated
 in order.
 """
-function Proteins(actvs::Set{P}, prods::Set{P}) where {P}
+Proteins(actvs::Set{P}, prods::Set{P}) where {P} = begin
     psin = sort(collect(setdiff(actvs, prods)))
     psout = sort(collect(setdiff(prods, actvs)))
     pselse = sort(collect(intersect(actvs, prods)))
-    return Proteins(psin, psout, pselse)
+    Proteins(psin, psout, pselse)
 end
 
 # Implement the immutable, array-like interface for Proteins
@@ -144,67 +138,54 @@ Base.IndexStyle(::Type{<:Proteins}) = Base.IndexLinear()
 Base.getindex(prtns::Proteins, i::Integer) = Base.getindex(prtns.ps, i)
 
 # Overwrite and disallow the similar method
-Base.similar(prtns::Proteins) = error("similar not defined for $(typeof(prtns))")
+Base.similar(::Proteins{P}) where {P} = error("similar not defined for Proteins{$P}")
 
 # Overwrite the == operator
 Base.:(==)(prtns::Proteins, arr::AbstractArray) = false
-function Base.:(==)(prtns::Proteins, other::Proteins)
-    return all(name -> getfield(prtns, name) == getfield(other, name), fieldnames(Proteins))
-end
+Base.:(==)(prtns::Proteins{P}, other::Proteins{P}) where {P} =
+    all(name -> getfield(prtns, name) == getfield(other, name), fieldnames(Proteins))
 
 """
     index(prtns::Proteins{P}, p::P)::Int where {P}
 
 Return the index of protein `p` in `prtns`.
 """
-function index(prtns::Proteins{P}, p::P)::Int where {P}
-    return prtns.inds[p]
-end
+index(prtns::Proteins{P}, p::P) where {P} = prtns.inds[p]
 
 """
     index(prtns::Proteins{P}, p::Vector{P})::Vector{Int} where {P}
 
 Return the indices of proteins `ps` in `prtns`.
 """
-function index(prtns::Proteins{P}, ps::Vector{P})::Vector{Int} where {P}
-    return [prtns.inds[p] for p in ps]
-end
+index(prtns::Proteins{P}, ps::Vector{P}) where {P} = [prtns.inds[p] for p in ps]
 
 """
     input(prtns::Proteins{P})::Vector{P} where {P}
 
 Return the input proteins in the protein collection `prtns`.
 """
-function input(prtns::Proteins{P})::Vector{P} where {P}
-    return prtns.ps[begin:begin+prtns.nin-1]
-end
+input(prtns::Proteins{P}) where {P} = @inbounds prtns.ps[begin:begin+prtns.nin-1]
 
 """
     output(prtns::Proteins{P})::Vector{P} where {P}
 
 Return the output proteins in the protein collection `prtns`.
 """
-function output(prtns::Proteins{P})::Vector{P} where {P}
-    return prtns.ps[end-prtns.nout+1:end]
-end
+output(prtns::Proteins{P}) where {P} = @inbounds prtns.ps[end-prtns.nout+1:end]
 
 """
     activators(prtns::Proteins{P})::Vector{P} where {P}
 
 Return those that can serve as expression activators in the protein collection `prtns`.
 """
-function activators(prtns::Proteins{P})::Vector{P} where {P}
-    return prtns.ps[begin:end-prtns.nout]
-end
+activators(prtns::Proteins{P}) where {P} = @inbounds prtns.ps[begin:end-prtns.nout]
 
 """
     products(prtns::Proteins{P})::Vector{P} where {P}
 
 Return those that can serve as expression products in the protein collection `prtns`.
 """
-function products(prtns::Proteins{P})::Vector{P} where {P}
-    return prtns.ps[begin+prtns.nin:end]
-end
+products(prtns::Proteins{P}) where {P} = @inbounds prtns.ps[begin+prtns.nin:end]
 
 
 # ----------------------------------------------------------------
@@ -253,27 +234,22 @@ struct BinaryPhenotype{P} <: AbstractPhenotype{P, Bool}
     st::BitVector
 end
 
-function proteins(pht::BinaryPhenotype{P})::Proteins{P} where {P}
-    return pht.ps
-end
+proteins(pht::BinaryPhenotype{P}) where {P} = pht.ps
 
 """
     state(pht::BinaryPhenotype{P}, p::P)::Bool
 
 Return whether protein `p` is present or absent in phenotype `pht`.
 """
-function state(pht::BinaryPhenotype{P}, p::P)::Bool where {P}
-    return pht.st[index(proteins(pht), p)]
-end
+state(pht::BinaryPhenotype{P}, p::P) where {P} = @inbounds pht.st[index(proteins(pht), p)]
 
 """
     state(pht::BinaryPhenotype{P}, ps::Vector{P})::BitVector
 
 Return whether each protein in `ps` is present or absent in phenotype `pht`.
 """
-function state(pht::BinaryPhenotype{P}, ps::Vector{P})::BitVector where {P}
-    return pht.st[index(proteins(pht), ps)]
-end
+state(pht::BinaryPhenotype{P}, ps::Vector{P}) where {P} =
+    @inbounds pht.st[index(proteins(pht), ps)]
 
 # ----------------------------------------------------------------
 
