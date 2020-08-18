@@ -1,5 +1,5 @@
 using Test
-using GenoNet: PathwayFramework
+using GenoNet.PathwayFramework
 
 @testset "PathwayFramework Tests" begin
 
@@ -11,33 +11,33 @@ using GenoNet: PathwayFramework
             @test_throws DomainError Genes([1, 2, 2])
         end
         @testset "Array interface" begin
-            genes = Genes(gs)
-            @test size(genes) == (3,)
-            @test genes[2] == 3
-            @test_throws ErrorException genes[2] = 4
-            @test_throws ErrorException similar(genes)
-            @test length(genes) == 3
-            @test 3 in genes
-            @test 4 ∉ genes
-            @test [g for g in genes] == [1, 3, 2]
-            @test collect(genes) == [1, 3, 2]
-            @test genes[begin] == 1
-            @test genes[2:end] == [3, 2]
-            @test_throws BoundsError genes[-1]
-            @test_throws ErrorException copy(genes)
+            gns = Genes(gs)
+            @test size(gns) == (3,)
+            @test gns[2] == 3
+            @test_throws ErrorException gns[2] = 4
+            @test_throws ErrorException similar(gns)
+            @test length(gns) == 3
+            @test 3 in gns
+            @test 4 ∉ gns
+            @test [g for g in gns] == [1, 3, 2]
+            @test collect(gns) == [1, 3, 2]
+            @test gns[begin] == 1
+            @test gns[2:end] == [3, 2]
+            @test_throws BoundsError gns[-1]
+            @test_throws ErrorException copy(gns)
         end
         @testset "Other methods" begin
-            genes = Genes(gs)
-            @test genes === genes
-            @test genes !== Genes(gs)
-            @test genes != gs
-            @test genes != "array"
-            @test index(genes, 3) == 2
-            @test index(genes, [2, 3]) == [3, 2]
-            @test_throws KeyError index(genes, 4)
-            @test_throws MethodError index(genes, '3')
-            @test_throws KeyError index(genes, [2, 4])
-            @test_throws MethodError index(genes, ['2', '3'])
+            gns = Genes(gs)
+            @test gns === gns
+            @test gns !== Genes(gs)
+            @test gns != gs
+            @test gns != "array"
+            @test index(gns, 3) == 2
+            @test index(gns, [2, 3]) == [3, 2]
+            @test_throws KeyError index(gns, 4)
+            @test_throws MethodError index(gns, '3')
+            @test_throws KeyError index(gns, [2, 4])
+            @test_throws MethodError index(gns, ['2', '3'])
         end
     end
 
@@ -93,6 +93,7 @@ using GenoNet: PathwayFramework
         prtns = Proteins([1, 3, 2, 4], 1, 1)
         st = BitVector([true, false, true, false])
         pht = BinaryPhenotype(prtns, st)
+        @test isa(pht, AbstractPhenotype)
         @test proteins(pht) === prtns
         @test state(pht, 1) == true
         @test state(pht, 3) == false
@@ -101,6 +102,69 @@ using GenoNet: PathwayFramework
         @test state(pht, [1, 2, 3]) == BitVector([true, true, false])
         @test_throws KeyError state(pht, [1, 2, 5])
         @test_throws MethodError state(pht, ['1', '2', '3'])
+    end
+
+    @testset "BinaryEnv" begin
+        prtns = Proteins([1, 3, 2, 4], 1, 1)
+        env = BinaryEnv(prtns, [1,], Int[], [4,])
+        @testset "Constructors" begin
+            @test env.ps === prtns && env.stml == [1,] && env.essnt == Int[] && env.ftl == [4,]
+            @test isa(env, AbstractEnv)
+            @test_throws AssertionError BinaryEnv(prtns, [1,], Int[], [5,])
+            @test_throws MethodError BinaryEnv(prtns, ['1',], Char[], ['4',])
+            @test_throws AssertionError BinaryEnv(prtns, [1,], [4,], [4,])
+            @test_throws AssertionError BinaryEnv(prtns, [4,], Int[], [4,])
+            @test_throws AssertionError BinaryEnv(prtns, [1,], Int[], [1,])
+        end
+        @testset "Other methods" begin
+            @test proteins(env) === prtns
+            @test stimulated(env) == [1,]
+            @test essential(env) == Int[]
+            @test fatal(env) == [4,]
+        end
+    end
+
+    @testset "DyadicGenotype" begin
+        gns = Genes([1, 3, 2])
+        prtns = Proteins([1, 3, 2, 4], 1, 1)
+        als = Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (3 => 4))
+        gt = DyadicGenotype(gns, prtns, als)
+        @testset "Constructors" begin
+            @test gt.gs === gns && gt.ps === prtns && gt.abstr == [1 => 2, 2 => 4, 3 => 2]
+            @test isa(gt, AbstractGenotype)
+            @test_throws AssertionError DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 4 => (3 => 4)))
+            @test_throws AssertionError DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (3 => 4), 4 => (3 => 4)))
+            @test_throws AssertionError DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3)))
+            @test_throws AssertionError DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (3 => 5)))
+            @test_throws AssertionError DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (5 => 4)))
+            @test_throws AssertionError DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (3 => 1)))
+            @test_throws AssertionError DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (4 => 3), 3 => (3 => 4)))
+        end
+        @testset "Other methods" begin
+            @test genes(gt) === gns
+            @test proteins(gt) === prtns
+            @test allele(gt, 3) == (3 => 4)
+            @test_throws KeyError allele(gt, 4)
+            @test_throws MethodError allele(gt, '3')
+            @test allele(gt, [1, 2, 3]) == [1 => 3, 2 => 3, 3 => 4]
+            @test_throws KeyError allele(gt, [1, 2, 4])
+            @test_throws MethodError allele(gt, ['1', '2', '3'])
+            @test iscompatible(gt, DyadicGenotype(gns, prtns, Dict(1 => (1 => 2), 2 => (3 => 2), 3 => (2 => 4))))
+            @test iscompatible(gt, DyadicGenotype(Genes([1, 3, 2]), prtns, als))
+            @test iscompatible(gt, DyadicGenotype(gns, Proteins([1, 3, 2, 4], 1, 1), als))
+            @test ! iscompatible(gt, DyadicGenotype(Genes([1, 2]), prtns, Dict(1 => (1 => 3), 2 => (2 => 3))))
+            @test ! iscompatible(gt, DyadicGenotype(gns, Proteins([1, 2, 3, 4], 1, 1), als))
+            env = BinaryEnv(prtns, [1,], Int[], [4,])
+            wrongenv = BinaryEnv(Proteins([1, 2, 3, 4], 1, 1), [1,], Int[], [4,])
+            @test iscompatible(gt, env)
+            @test iscompatible(gt, BinaryEnv(Proteins([1, 3, 2, 4], 1, 1), [1,], Int[], [4,]))
+            @test ! iscompatible(gt, wrongenv)
+            pht = phenotype(gt, env)
+            @test isa(pht, BinaryPhenotype)
+            @test pht.ps === prtns && pht.st == BitVector([true, true, false, true])
+            @test_throws AssertionError phenotype(gt, wrongenv)
+            @test_throws MethodError phenotype(gt, BinaryEnv(Proteins(['1', '4'], 1, 1), ['1',], Char[], ['4',]))
+        end
     end
 
 end
