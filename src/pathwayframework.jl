@@ -25,7 +25,7 @@ struct Genes{G} <: AbstractArray{G, 1}
 
     "constructor asserting the uniqueness of loci"
     Genes{G}(gs, inds) where {G} = begin
-        allunique(gs) || throw(DomainError(gs, "loci must be all unique"))
+        @assert allunique(gs) "loci must be all unique"
         new(gs, inds)
     end
 end
@@ -96,7 +96,7 @@ struct Proteins{P} <: AbstractArray{P, 1}
 
     "constructor asserting the uniqueness of proteins"
     Proteins{P}(ps, inds, nin, nout) where {P} = begin
-        allunique(ps) || throw(DomainError(ps, "proteins must be all unique"))
+        @assert allunique(ps) "proteins must be all unique"
         new(ps, inds, nin, nout)
     end
 end
@@ -111,7 +111,7 @@ Construct a Proteins object in the order of the input, remaining, and output pro
 The indices of proteins are pre-computed.
 """
 Proteins(ps::Vector, nin::Int, nout::Int) = begin
-    nin + nout <= length(ps) || throw(AssertionError("too many input/output proteins"))
+    @assert nin + nout <= length(ps) "too many input/output proteins"
     Proteins(ps, Dict(p => i for (i, p) in Iterators.enumerate(ps)), nin, nout)
 end
 
@@ -166,7 +166,7 @@ index(prtns::Proteins{P}, p::P) where {P} = prtns.inds[p]
 
 Return the indices of proteins `ps` in `prtns`.
 """
-index(prtns::Proteins{P}, ps::Vector{P}) where {P} = [prtns.inds[p] for p in ps]
+index(prtns::Proteins{P}, ps::Vector{P}) where {P} = [index(prtns, p) for p in ps]
 
 """
     input(prtns::Proteins{P})::Vector{P} where {P}
@@ -303,10 +303,10 @@ struct BinaryEnv{P} <: AbstractEnv{P}
 
     "constructor asserting the consistency of proteins"
     BinaryEnv{P}(ps, stml, essnt, ftl) where {P} = begin
-        issubset([stml; essnt; ftl], ps) || throw(AssertionError("proteins not in the collection"))
-        isempty(intersect(essnt, ftl)) || throw(AssertionError("no protein is both essential and fatal"))
-        issubset(stml, input(ps)) || throw(AssertionError("stimulated protein must be an input protein"))
-        issubset([essnt; ftl], output(ps)) || throw(AssertionError("essential/fatal protein must an output protein"))
+        @assert issubset([stml; essnt; ftl], ps) "proteins not in the collection"
+        @assert isempty(intersect(essnt, ftl)) "no protein is both essential and fatal"
+        @assert issubset(stml, input(ps)) "stimulated protein must be an input protein"
+        @assert issubset([essnt; ftl], output(ps)) "essential/fatal protein must an output protein"
         new(ps, stml, essnt, ftl)
     end
 end
@@ -419,10 +419,9 @@ with the alleles `als` of `gs` accordingly.
 """
 DyadicGenotype(gs::Genes{G}, ps::Proteins{P}, als::Dict{G, Pair{P, P}}) where {G, P} = begin
     # Assert that alleles are consistent with the underlying genes and proteins
-    issubset(keys(als), gs) || throw(AssertionError("gene not in the collection"))
-    length(als) == length(gs) || throw(AssertionError("alleles of some loci not specified"))
-    consistent = all(actv in activators(ps) && prod in products(ps) for (actv, prod) in values(als))
-    consistent || throw(AssertionError("protein inconsistent with the collection"))
+    @assert issubset(keys(als), gs) "gene not in the collection"
+    @assert length(als) == length(gs) "alleles of some loci not specified"
+    @assert all(actv in activators(ps) && prod in products(ps) for (actv, prod) in values(als)) "protein inconsistent with the collection"
 
     DyadicGenotype(gs, ps, [index(ps, als[g].first) => index(ps, als[g].second) for g in gs])
 end

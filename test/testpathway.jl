@@ -8,7 +8,7 @@ using GenoNet.PathwayFramework
         @testset "Constructors" begin
             @test Genes(gs) == Genes{Int}(gs, Dict(1 => 1, 3 => 2, 2 => 3))
             @test Genes(Set(gs)) == Genes{Int}(sort(gs), Dict(1 => 1, 2 => 2, 3 => 3))
-            @test_throws DomainError Genes([1, 2, 2])
+            @test_throws AssertionError Genes([1, 2, 2])
         end
         @testset "Array interface" begin
             gns = Genes(gs)
@@ -51,7 +51,7 @@ using GenoNet.PathwayFramework
             @test Proteins(ps, nin, nout) == prtns
             @test Proteins(ps[begin:begin+nin-1], ps[end-nout+1:end], ps[begin+nin:end-nout]) == prtns
             @test Proteins(Set(ps[begin:end-nout]), Set(ps[begin+nin:end])) == prtns_srt
-            @test_throws DomainError Proteins([1, 2, 2, 4], nin, nout)
+            @test_throws AssertionError Proteins([1, 2, 2, 4], nin, nout)
             @test_throws AssertionError Proteins(ps, 2, 3)
         end
         @testset "Array interface" begin
