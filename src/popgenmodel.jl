@@ -1,9 +1,70 @@
 module PopGenModel
 
 using ..PathwayFramework
+using Random
 
+export ReproductionMode, reproduce!, reproduce
 export ViabilityMode, isviable
-export BinaryViability
+export BinaryViability, IdenticalReproductivity
+
+
+# ----------------------------------------------------------------
+# Reproduction and generating offspring from a population
+
+"""
+    ReproductionMode
+
+Model assumption on the reproduction process of individuals in a population.
+
+# Implementation
+Any custom subtype of `ReproductionMode` must implement an associated method of the
+[`reproduce!`](@ref) function.
+"""
+abstract type ReproductionMode end
+
+"""
+    reproduce!(offsp::Vector{GT}, popl::Vector{GT}, rm::ReproductionMode)::Nothing where {GT <: AbstractGenotype}
+
+Populate the offspring population `offsp` with individuals reproduced from population
+`popl` under the model assumption `rm`.
+
+Individuals are represented by their genotypes. See also [`reproduce`](@ref).
+"""
+function reproduce! end
+
+"""
+    reproduce(popl::Vector{GT}, n::Integer, rm::ReproductionMode)::Vector{GT} where {GT <: AbstractGenotype}
+
+Return `n` offspring individuals reproduced from population `popl` under the model
+assumption `rm`.
+
+Individuals are represented by their genotypes.
+"""
+function reproduce(popl::Vector{GT}, n::Integer, rm::ReproductionMode) where {GT <: AbstractGenotype}
+    offsp = similar(popl, n)
+    return reproduce!(offsp, popl, rm)
+end
+
+"""
+    IdenticalReproductivity <: ReproductionMode
+
+Model specification where individuals in a population all have the same reproductivity.
+
+Namely, offpsring is equally likely to be reproduced by any individual in the population.
+"""
+struct IdenticalReproductivity <: ReproductionMode end
+
+"""
+    reproduce!(offsp::Vector{GT}, popl::Vector{GT}, ::IdenticalReproductivity)::Nothing where {GT <: AbstractGenotype}
+
+Populate the offpsring population `offsp` with individuals that are randomly, uniformly
+sampled from population `popl`.
+
+Individuals are represented by their genotypes.
+"""
+function reproduce!(offsp::Vector{GT}, popl::Vector{GT}, ::IdenticalReproductivity) where {GT <: AbstractGenotype}
+    Random.rand!(offsp, popl)
+end
 
 
 # ----------------------------------------------------------------

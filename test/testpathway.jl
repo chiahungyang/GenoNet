@@ -141,6 +141,7 @@ using GenoNet.PathwayFramework
             @test_throws AssertionError DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (4 => 3), 3 => (3 => 4)))
         end
         @testset "Other methods" begin
+            @test gt == DyadicGenotype(gns, prtns, als)
             @test genes(gt) === gns
             @test proteins(gt) === prtns
             @test allele(gt, 3) == (3 => 4)

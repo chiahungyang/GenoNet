@@ -389,6 +389,20 @@ iscompatible(gt::AbstractGenotype, other::AbstractGenotype) = begin
     (gs_gt === gs_other || gs_gt == gs_other) && (ps_gt === ps_other || ps_gt == ps_other)
 end
 
+# Implement pretty printing for AbstractGenotype
+Base.show(io::IO, ::MIME"text/plain", gt::AbstractGenotype) = begin
+    print(typeof(gt), ":")
+    for g in genes(gt)
+        print("\n  ", g, ": ", allele(gt, g).first => allele(gt, g).second)
+    end
+end
+
+# Overwrite the == operator
+Base.:(==)(gt::AbstractGenotype, other) = false
+function Base.:(==)(gt::GT, other::GT) where {GT <: AbstractGenotype}
+    all(name -> getfield(gt, name) == getfield(other, name), fieldnames(GT))
+end
+
 # ----------------------------------------------------------------
 # Concrete implementation of a genotype where expression behavior of a gene is modeled as
 # the pair of its presumably sole transcription activator and protein product
