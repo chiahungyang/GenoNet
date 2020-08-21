@@ -35,4 +35,12 @@ using Random
         end
     end
 
+    @testset "IndependentMutation" begin
+        @test begin
+            Random.seed!(12345)
+            gt_mut = mutate(gt_inviable, IndependentMutation(0.5))
+            gt_mut == DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (1 => 2), 3 => (3 => 4)))
+        end
+    end
+
 end

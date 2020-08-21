@@ -5,7 +5,8 @@ using Random
 
 export ReproductionMode, reproduce!, reproduce
 export ViabilityMode, isviable
-export BinaryViability, IdenticalReproductivity
+export MutationMode, mutate
+export BinaryViability, IdenticalReproductivity, IndependentMutation
 
 
 # ----------------------------------------------------------------
@@ -17,7 +18,7 @@ export BinaryViability, IdenticalReproductivity
 Model assumption on the reproduction process of individuals in a population.
 
 # Implementation
-Any custom subtype of `ReproductionMode` must implement an associated method of the
+Any custom subtype of `ReproductionMode` should implement an associated method of the
 [`reproduce!`](@ref) function.
 """
 abstract type ReproductionMode end
@@ -76,7 +77,7 @@ end
 Model assumption on the viability of an individual.
 
 # Implementation
-Any custom subtype of `ViabilityMode` must implement an associated method of the
+Any custom subtype of `ViabilityMode` should implement an associated method of the
 [`isviable`](@ref) function.
 """
 abstract type ViabilityMode end
@@ -113,6 +114,62 @@ fatal proteins are absent in phenotype `pht`.
 """
 function isviable(pht::BinaryPhenotype{P}, env::BinaryEnv{P}, ::BinaryViability) where {P}
     return all(state(pht, essential(env))) && ! any(state(pht, fatal(env)))
+end
+
+
+# ----------------------------------------------------------------
+# Mutation of genotypes
+
+"""
+    MutationMode
+
+Model assumption on mutation of the genotype of an individual.
+
+# Implementation
+Any custom subtype of `MutationMode` should implement an associated method of the
+[`mutate`](@ref) function.
+"""
+abstract type MutationMode end
+
+"""
+    mutate(gt::GT, mm::MutationMode)::GT where {GT <: AbstractGenotype}
+
+Return the individual's genotype after a potential random mutation process from genotype
+`gt` under the model assumption `mm`.
+
+Note that the genotype of the individual may remain unchanged.
+"""
+function mutate end
+
+"""
+    IndependentMutation <: MutationMode
+
+Model specification where mutation at each locus is an independent random process.
+
+Mutation at each locus occurs with a constant probability `prob`, and it then changes the
+the allele to a uniformly, randomly chosen sample from other possible alleles.
+"""
+struct IndependentMutation <: MutationMode
+    prob::Float64
+end
+
+"""
+    mutate(gt::GT, ::IndependentMutation)::GT where {GT <: DyadicGenotype}
+
+Return the genotype mutated from `gt`, where the expression activators/products of alleles
+may be uniformly, randomly sampled from all possible protein activators/products.
+
+See also [`IndependentMutation`](@ref).
+"""
+function mutate(gt::DyadicGenotype, mm::IndependentMutation)
+    actvs, prods = activators(proteins(gt)), products(proteins(gt))
+    expr = Dict(g => allele(gt, g) for g in genes(gt))
+    for g in Random.randsubseq(genes(gt), mm.prob)
+        al = expr[g]
+        expr[g] = (Random.rand(actvs) => Random.rand(prods))
+        while expr[g] == al global expr[g] = (Random.rand(actvs) => Random.rand(prods)) end
+    end
+    return DyadicGenotype(genes(gt), proteins(gt), expr)
 end
 
 # ----------------------------------------------------------------
