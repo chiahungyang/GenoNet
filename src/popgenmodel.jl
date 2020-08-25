@@ -6,66 +6,9 @@ using Random
 export ReproductionMode, reproduce!, reproduce
 export ViabilityMode, isviable
 export MutationMode, mutate
-export BinaryViability, IdenticalReproductivity, IndependentMutation
-
-
-# ----------------------------------------------------------------
-# Reproduction and generating offspring from a population
-
-"""
-    ReproductionMode
-
-Model assumption on the reproduction process of individuals in a population.
-
-# Implementation
-Any custom subtype of `ReproductionMode` should implement an associated method of the
-[`reproduce!`](@ref) function.
-"""
-abstract type ReproductionMode end
-
-"""
-    reproduce!(offsp::Vector{GT}, popl::Vector{GT}, rm::ReproductionMode)::Nothing where {GT <: AbstractGenotype}
-
-Populate the offspring population `offsp` with individuals reproduced from population
-`popl` under the model assumption `rm`.
-
-Individuals are represented by their genotypes. See also [`reproduce`](@ref).
-"""
-function reproduce! end
-
-"""
-    reproduce(popl::Vector{GT}, n::Integer, rm::ReproductionMode)::Vector{GT} where {GT <: AbstractGenotype}
-
-Return `n` offspring individuals reproduced from population `popl` under the model
-assumption `rm`.
-
-Individuals are represented by their genotypes.
-"""
-function reproduce(popl::Vector{GT}, n::Integer, rm::ReproductionMode) where {GT <: AbstractGenotype}
-    offsp = similar(popl, n)
-    return reproduce!(offsp, popl, rm)
-end
-
-"""
-    IdenticalReproductivity <: ReproductionMode
-
-Model specification where individuals in a population all have the same reproductivity.
-
-Namely, offpsring is equally likely to be reproduced by any individual in the population.
-"""
-struct IdenticalReproductivity <: ReproductionMode end
-
-"""
-    reproduce!(offsp::Vector{GT}, popl::Vector{GT}, ::IdenticalReproductivity)::Nothing where {GT <: AbstractGenotype}
-
-Populate the offpsring population `offsp` with individuals that are randomly, uniformly
-sampled from population `popl`.
-
-Individuals are represented by their genotypes.
-"""
-function reproduce!(offsp::Vector{GT}, popl::Vector{GT}, ::IdenticalReproductivity) where {GT <: AbstractGenotype}
-    Random.rand!(offsp, popl)
-end
+export PopDynamicsMode
+export model
+export BinaryViability, IdenticalReproductivity, IndependentMutation, ConstantPopSize
 
 
 # ----------------------------------------------------------------
@@ -146,10 +89,11 @@ function mutate end
 
 Model specification where mutation at each locus is an independent random process.
 
-Mutation at each locus occurs with a constant probability `prob`, and it then changes the
-the allele to a uniformly, randomly chosen sample from other possible alleles.
+Mutation at each locus occurs with a constant probability, and it then changes the allele
+to a uniformly, randomly chosen sample from other possible alleles.
 """
 struct IndependentMutation <: MutationMode
+    "per-locus mutation probability"
     prob::Float64
 end
 
@@ -170,6 +114,153 @@ function mutate(gt::DyadicGenotype, mm::IndependentMutation)
         while expr[g] == al global expr[g] = (Random.rand(actvs) => Random.rand(prods)) end
     end
     return DyadicGenotype(genes(gt), proteins(gt), expr)
+end
+
+
+# ----------------------------------------------------------------
+# Reproduction and generating offspring from a population
+
+"""
+    ReproductionMode
+
+Model assumption on the reproduction process of individuals in a population.
+
+# Implementation
+Any custom subtype of `ReproductionMode` should implement an associated method of the
+[`reproduce!`](@ref) function.
+"""
+abstract type ReproductionMode end
+
+"""
+    reproduce!(offsp::Vector{GT}, popl::Vector{GT}, rm::ReproductionMode)::Nothing where {GT <: AbstractGenotype}
+
+Populate the offspring population `offsp` with individuals reproduced from population
+`popl` under the model assumption `rm`.
+
+Individuals are represented by their genotypes. See also [`reproduce`](@ref).
+"""
+function reproduce! end
+
+"""
+    reproduce(popl::Vector{GT}, n::Integer, rm::ReproductionMode)::Vector{GT} where {GT <: AbstractGenotype}
+
+Return `n` offspring individuals reproduced from population `popl` under the model
+assumption `rm`.
+
+Individuals are represented by their genotypes.
+"""
+function reproduce(popl::Vector{GT}, n::Integer, rm::ReproductionMode) where {GT <: AbstractGenotype}
+    offsp = similar(popl, n)
+    return reproduce!(offsp, popl, rm)
+end
+
+"""
+    IdenticalReproductivity <: ReproductionMode
+
+Model specification where individuals in a population all have the same reproductivity.
+
+Namely, offpsring is equally likely to be reproduced by any individual in the population.
+"""
+struct IdenticalReproductivity <: ReproductionMode end
+
+"""
+    reproduce!(offsp::Vector{GT}, popl::Vector{GT}, ::IdenticalReproductivity)::Nothing where {GT <: AbstractGenotype}
+
+Populate the offpsring population `offsp` with individuals that are randomly, uniformly
+sampled from population `popl`.
+
+Individuals are represented by their genotypes.
+"""
+function reproduce!(offsp::Vector{GT}, popl::Vector{GT}, ::IdenticalReproductivity) where {GT <: AbstractGenotype}
+    Random.rand!(offsp, popl)
+end
+
+
+# ----------------------------------------------------------------
+# Dynamics of the population
+
+"""
+    PopDynamicsMode
+
+Model assumption on the dynamics of a population.
+
+# Implementation
+Any custom subtype of `PopDynamicsMode` should implement an associated method of the
+[`evolve`](@ref) function.
+"""
+abstract type PopDynamicsMode end
+
+"""
+    evolve(popl::Vector{GT}, env::AbstractEnv{P}, pdm::PopDynamicsMode,
+        specs::Vararg)::Vector{GT} where {GT <: AbstractGenotype{G, P}}
+
+Return the next generation of population `popl` under environment `env`, the model
+assumption `pdm` and other model specifications `specs`.
+
+This function is not exported to avoid ambiguity of function names.
+"""
+function evolve end
+
+"""
+    ConstantPopSize <: PopDynamicsMode
+
+Model specification where the population size remains constant.
+"""
+struct ConstantPopSize <: PopDynamicsMode end
+
+"""
+    evolve(popl::Vector{GT}, env::AbstractEnv{P}, ::ConstantPopSize, vm::ViabilityMode,
+        rm::ReproductionMode, mm::MutationMode)::Vector{GT} where {GT <: AbstractGenotype{G, P}}
+
+Return the next generation of a fixed-size population that undergoes selection,
+reproduction and mutation.
+
+The next generation of population `popl` is evolved under environment `env` and model
+specifications `vm`, `rm`, and `mm` for viability, reproduction, and mutation respectively.
+
+# Pre-condition
+The subtype `GT <: AbstractGenotype` must support methods of the [`isviable`](@ref),
+[`reproduction`](@ref), and [`mutate`](@ref) functions.
+"""
+function evolve(
+    popl::Vector{<:AbstractGenotype{G, P}},
+    env::AbstractEnv{P},
+    ::ConstantPopSize,
+    vm::ViabilityMode,
+    rm::ReproductionMode,
+    mm::MutationMode
+    ) where {G, P}
+
+    survivors = [gt for gt in popl if isviable(gt, env, vm)]
+    offsping = reproduce(survivors, length(popl), rm)
+    nextgen = [mutate(gt, mm) for gt in offspring]
+    return nextgen
+end
+
+
+# ----------------------------------------------------------------
+# Population genetic models
+
+"""
+    model(specs::Vararg)::function
+
+Return a function that evolves a population under model specifications `specs`.
+"""
+function model end
+
+"""
+    model(pdm::PopDynamicsMode, vm::ViabilityMode, rm::ReproductionMode,
+        mm:MutationMode)::Function
+
+Return a function that evolves a population with selection, reproduction, and mutation.
+"""
+function model(pdm::PopDynamicsMode, vm::ViabilityMode, rm::ReproductionMode, mm::MutationMode)
+    function _evolve(popl::Vector{<:AbstractGenotype{G, P}}, env::AbstractEnv{P}) where {G, P}
+        let pdm = pdm, vm = vm, rm = rm, mm = mm
+            return evolve(popl, env, pdm, vm, rm, mm)
+        end
+    end
+    return _evolve
 end
 
 # ----------------------------------------------------------------
