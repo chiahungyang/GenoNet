@@ -1,6 +1,7 @@
 module PathwayFramework
 
 using ..Utils: reachable
+using Random
 
 export Genes, Proteins, index, input, output, activators, products
 export AbstractPhenotype, AbstractEnv, AbstractGenotype,
@@ -195,6 +196,22 @@ activators(prtns::Proteins) = @inbounds prtns.ps[begin:end-prtns.nout]
 Return those that can serve as expression products in the protein collection `prtns`.
 """
 products(prtns::Proteins) = @inbounds prtns.ps[begin+prtns.nin:end]
+
+# Protein-related methods for internal use
+
+"""
+    _index_activators(prtns::Proteins)::UnitRange
+
+Return the indices of protein activators in `prtns`.
+"""
+_index_activators(prtns::Proteins) = 1:length(prtns)-prtns.nout
+
+"""
+    _index_products(prtns::Proteins)::UnitRange
+
+Return the indices of protein products in `prtns`.
+"""
+_index_products(prtns::Proteins) = 1+prtns.nin:length(prtns)
 
 
 # ----------------------------------------------------------------
@@ -428,7 +445,7 @@ end
 """
     DyadicGenotype(gs::Genes{G}, ps::Proteins{P}, als::Dict{G, Pair{P, P}})
 
-Construct a genotype from its underly collection of genes `gs` and proteins `ps`, along
+Construct a genotype from its underlying collection of genes `gs` and proteins `ps`, along
 with the alleles `als` of `gs` accordingly.
 """
 DyadicGenotype(gs::Genes{G}, ps::Proteins{P}, als::Dict{G, Pair{P, P}}) where {G, P} = begin
@@ -472,6 +489,66 @@ function phenotype(gt::DyadicGenotype{G, P}, env::BinaryEnv{P}) where {G, P}
     adjlist = [Int[] for p in proteins(gt)]
     for (actv, prod) in gt.abstr append!(adjlist[actv], prod) end
     return BinaryPhenotype(proteins(gt), reachable(adjlist, srcs))
+end
+
+# Genotype-related methods for internal use
+
+"""
+    _abstraction(gt::DyadicGenotype)::Vector{Pair{Int, Int}}
+
+Return the expression behavior of genotype `gt` abstracted as the pair of indices of the
+protein activator/product for each allele.
+
+`_abstraction(gt)[i]` represents expression of the `i`-th allele.
+
+# Note
+Notice that changing the return abstraction will change the genotype `gt`.
+"""
+_abstraction(gt::DyadicGenotype) = gt.abstr
+
+"""
+    _default(::DyadicGenotype{G, P}, gns::Genes{G}, prtns::Proteins{P}) where {G, P}
+
+Return a default genotype with the given underlying collection of genes `gns` and proteins
+`prtns`.
+
+The expression behavior of the genotype is defaulted to that the allele of every gene is
+triggered by the first protein activator and generates the first protein product in the
+underlying collection `prtns`.
+"""
+function _default(::Type{DyadicGenotype{G, P}}, gns::Genes{G}, prtns::Proteins{P}) where {G, P}
+    expr_def = fill(_index_activators(prtns)[begin] => _index_products(prtns)[begin], length(gns))
+    return DyadicGenotype(gns, prtns, expr_def)
+end
+
+# Overwrite the copy and copy! method
+"""
+    copy(gt::GT)::GT where {GT <: DyadicGenotype}
+
+Return a copy of genotype `gt` with the same underlying collection of genes/proteins.
+
+# Note
+This implementation differs from the regular copy method that the copied genotype links to
+the same underlying collection of genes/proteins as `gt`, while the data of its expression
+behavior is newly allocated and copied from `gt`.
+"""
+copy(gt::DyadicGenotype) = DyadicGenotype(genes(gt), proteins(gt), copy(_abstraction(gt)))
+
+"""
+    copy!(dst::GT, gt::GT)::Nothing where {GT <: DyadicGenotype}
+
+Copy genotype `gt` to `dst` while preserving the same underlying collection of
+genes/proteins.
+
+# Note
+This implementation differs from the regular copy method that the copied genotype `dst`
+links to the same underlying collection of genes/proteins as `gt`, while the data of its
+expression behavior is newly allocated and copied from `gt`.
+"""
+copy!(dst::GT, gt::GT) where {GT <: DyadicGenotype} = begin
+    genes(dst) === genes(gt) || (dst.gs = genes(gt))
+    proteins(dst) === proteins(gt) || (dst.ps = proteins(gt))
+    copy!(_abstraction(dst), _abstraction(gt))
 end
 
 # ----------------------------------------------------------------

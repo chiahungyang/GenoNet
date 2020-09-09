@@ -165,6 +165,17 @@ using GenoNet.PathwayFramework
             @test pht.ps === prtns && pht.st == BitVector([true, true, false, true])
             @test_throws AssertionError phenotype(gt, wrongenv)
             @test_throws MethodError phenotype(gt, BinaryEnv(Proteins(['1', '4'], 1, 1), ['1',], Char[], ['4',]))
+            gt_copy = copy(gt)
+            @test gt_copy == gt
+            @test gt_copy !== gt
+            @test genes(gt_copy) === genes(gt)
+            @test proteins(gt_copy) === proteins(gt)
+            dst = DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (1 => 3), 3 => (1 => 3)))
+            copy!(dst, gt)
+            @test dst == gt
+            @test dst !== gt
+            @test genes(dst) === genes(gt)
+            @test proteins(dst) === proteins(gt)
         end
     end
 
