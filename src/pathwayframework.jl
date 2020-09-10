@@ -7,6 +7,7 @@ export Genes, Proteins, index, input, output, activators, products
 export AbstractPhenotype, AbstractEnv, AbstractGenotype,
        proteins, state, stimulated, essential, fatal, genes, allele, phenotype, iscompatible
 export BinaryPhenotype, BinaryEnv, DyadicGenotype
+export randomgenotype, randompopulation
 
 
 # ----------------------------------------------------------------
@@ -549,6 +550,54 @@ copy!(dst::GT, gt::GT) where {GT <: DyadicGenotype} = begin
     genes(dst) === genes(gt) || (dst.gs = genes(gt))
     proteins(dst) === proteins(gt) || (dst.ps = proteins(gt))
     copy!(_abstraction(dst), _abstraction(gt))
+end
+
+
+# ----------------------------------------------------------------
+# Generating a population of individuals represented by their genotypes
+
+"""
+    randomgenotype(::Type{GT}, gns::Genes{G}, prtns::Proteins{P})::GT where {G, P, GT <:
+        AbstractGenotype{G, P}}
+
+Return a randomly generated genotype of type `GT` from the underlying collection `gns` and
+`prtns`.
+"""
+function randomgenotype end
+
+"""
+    randomgenotype(::Type{DyadicGenotype{G, P}}, gns::Genes{G}, prtns::Proteins{P}
+        )::DyadicGenotype{G, P} where {G, P}
+
+Return a genotype where the expression activator/product is randomly sampled from all
+possible protein activators/products.
+"""
+function randomgenotype(
+    ::Type{DyadicGenotype{G, P}},
+    gns::Genes{G},
+    prtns::Proteins{P}
+    ) where {G, P}
+
+    actvs, prods = _index_activators(prtns), _index_products(prtns)
+    expr = [Random.rand(actvs) => Random.rand(prods) for i in eachindex(gns)]
+    return DyadicGenotype(gns, prtns, expr)
+end
+
+"""
+    randompopulation(::Type{GT}, gns::Genes{G}, prtns::Proteins{P}, sz::Integer)::Vector{GT}
+        where {G, P, GT <: AbstractGenotype{G, P}}
+
+Return a population of randomly generated genotypes of type `GT` from the underlying
+collection `gns` and `prtns`.
+"""
+function randompopulation(
+    ::Type{GT},
+    gns::Genes{G},
+    prtns::Proteins{P},
+    sz::Integer
+    ) where {G, P, GT <: AbstractGenotype{G, P}}
+
+    return [randomgenotype(GT, gns, prtns) for i = 1:sz]
 end
 
 # ----------------------------------------------------------------
