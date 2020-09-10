@@ -177,6 +177,8 @@ using Random
             @test dst !== gt
             @test genes(dst) === genes(gt)
             @test proteins(dst) === proteins(gt)
+            @test index(gt) == 226
+            @test genotype(DyadicGenotype, gns, prtns, 226) == gt
         end
     end
 
@@ -185,12 +187,12 @@ using Random
         prtns = Proteins([1, 3, 2, 4], 1, 1)
         @test begin
             Random.seed!(12345)
-            gt = randomgenotype(DyadicGenotype{Int, Int}, gns, prtns)
+            gt = randomgenotype(DyadicGenotype, gns, prtns)
             gt == DyadicGenotype(gns, prtns, Dict(1 => (3 => 4), 2 => (3 => 4), 3 => (1 => 2)))
         end
         @test begin
             Random.seed!(12345)
-            popl = randompopulation(DyadicGenotype{Int, Int}, gns, prtns, 3)
+            popl = randompopulation(DyadicGenotype, gns, prtns, 3)
             popl == [DyadicGenotype(gns, prtns, Dict(1 => (3 => 4), 2 => (3 => 4), 3 => (1 => 2))),
                      DyadicGenotype(gns, prtns, Dict(1 => (2 => 4), 2 => (2 => 2), 3 => (2 => 2))),
                      DyadicGenotype(gns, prtns, Dict(1 => (3 => 3), 2 => (2 => 4), 3 => (3 => 2)))]

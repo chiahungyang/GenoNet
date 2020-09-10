@@ -5,7 +5,7 @@ using Random
 
 export Genes, Proteins, index, input, output, activators, products
 export AbstractPhenotype, AbstractEnv, AbstractGenotype,
-       proteins, state, stimulated, essential, fatal, genes, allele, phenotype, iscompatible
+       proteins, state, stimulated, essential, fatal, genes, allele, phenotype, genotype, iscompatible
 export BinaryPhenotype, BinaryEnv, DyadicGenotype
 export randomgenotype, randompopulation
 
@@ -198,12 +198,12 @@ Return those that can serve as expression products in the protein collection `pr
 """
 products(prtns::Proteins) = @inbounds prtns.ps[begin+prtns.nin:end]
 
-# Protein-related methods for internal use
-
 """
     _index_activators(prtns::Proteins)::UnitRange
 
 Return the indices of protein activators in `prtns`.
+
+This method is only for internal use.
 """
 _index_activators(prtns::Proteins) = 1:length(prtns)-prtns.nout
 
@@ -211,8 +211,28 @@ _index_activators(prtns::Proteins) = 1:length(prtns)-prtns.nout
     _index_products(prtns::Proteins)::UnitRange
 
 Return the indices of protein products in `prtns`.
+
+This method is only for internal use.
 """
 _index_products(prtns::Proteins) = 1+prtns.nin:length(prtns)
+
+"""
+    _num_activators(prtns::Proteins)::Int
+
+Return the number of protein activators in `prtns`.
+
+This method is only for internal use.
+"""
+_num_activators(prtns::Proteins) = length(prtns) - prtns.nout
+
+"""
+    _num_products(prtns::Proteins)::Int
+
+Return the number of protein products in `prtns`.
+
+This method is only for internal use.
+"""
+_num_products(prtns::Proteins) = length(prtns) - prtns.nin
 
 
 # ----------------------------------------------------------------
@@ -367,6 +387,9 @@ proteins of type `P`.
 # Implementation
 Any custom subtype of `AbstractGenotype` should implement methods of the [`genes`](@ref),
 [`proteins`](@ref), [`allele`](@ref) and [`phenotype`](@ref) functions.
+
+To support indexing genotypes given the underlying collection of genes/proteins, implement
+methods of the [`index`](@ref) and [`genotype`](@ref) functions.
 """
 abstract type AbstractGenotype{G, P} end
 
@@ -390,6 +413,22 @@ function allele end
 Return the phenotype of genotype `gt` under selective environment `env`.
 """
 function phenotype end
+
+"""
+    index(gt::AbstractGenotype)::Int
+
+Return the index of genotype `gt`.
+"""
+function index end
+
+"""
+    genotype(::Type{GT}, gns::Genes, prtns::Proteins, ind::Integer)::GT
+        where {GT <: AbstractGenotype}
+
+Return a genotype of type `GT`, whose index is `ind` given the underlying collection of
+genes `gns` and proteins `prtns`.
+"""
+function genotype end
 
 """
     iscompatible(::AbstractGenotype, ::AbstractEnv)::Bool
@@ -492,8 +531,6 @@ function phenotype(gt::DyadicGenotype{G, P}, env::BinaryEnv{P}) where {G, P}
     return BinaryPhenotype(proteins(gt), reachable(adjlist, srcs))
 end
 
-# Genotype-related methods for internal use
-
 """
     _abstraction(gt::DyadicGenotype)::Vector{Pair{Int, Int}}
 
@@ -502,25 +539,12 @@ protein activator/product for each allele.
 
 `_abstraction(gt)[i]` represents expression of the `i`-th allele.
 
+This method is only for internal use.
+
 # Note
 Notice that changing the return abstraction will change the genotype `gt`.
 """
 _abstraction(gt::DyadicGenotype) = gt.abstr
-
-"""
-    _default(::DyadicGenotype{G, P}, gns::Genes{G}, prtns::Proteins{P}) where {G, P}
-
-Return a default genotype with the given underlying collection of genes `gns` and proteins
-`prtns`.
-
-The expression behavior of the genotype is defaulted to that the allele of every gene is
-triggered by the first protein activator and generates the first protein product in the
-underlying collection `prtns`.
-"""
-function _default(::Type{DyadicGenotype{G, P}}, gns::Genes{G}, prtns::Proteins{P}) where {G, P}
-    expr_def = fill(_index_activators(prtns)[begin] => _index_products(prtns)[begin], length(gns))
-    return DyadicGenotype(gns, prtns, expr_def)
-end
 
 # Overwrite the copy and copy! method
 """
@@ -533,7 +557,7 @@ This implementation differs from the regular copy method that the copied genotyp
 the same underlying collection of genes/proteins as `gt`, while the data of its expression
 behavior is newly allocated and copied from `gt`.
 """
-copy(gt::DyadicGenotype) = DyadicGenotype(genes(gt), proteins(gt), copy(_abstraction(gt)))
+Base.copy(gt::DyadicGenotype) = DyadicGenotype(genes(gt), proteins(gt), copy(_abstraction(gt)))
 
 """
     copy!(dst::GT, gt::GT)::Nothing where {GT <: DyadicGenotype}
@@ -546,19 +570,63 @@ This implementation differs from the regular copy method that the copied genotyp
 links to the same underlying collection of genes/proteins as `gt`, while the data of its
 expression behavior is newly allocated and copied from `gt`.
 """
-copy!(dst::GT, gt::GT) where {GT <: DyadicGenotype} = begin
+Base.copy!(dst::GT, gt::GT) where {GT <: DyadicGenotype} = begin
     genes(dst) === genes(gt) || (dst.gs = genes(gt))
     proteins(dst) === proteins(gt) || (dst.ps = proteins(gt))
     copy!(_abstraction(dst), _abstraction(gt))
 end
+
+# Indexing genotype in the given underlying collection of genes/proteins
+
+function index(gt::DyadicGenotype)
+    nactvs, nprods = _num_activators(proteins(gt)), _num_products(proteins(gt))
+    nin = length(proteins(gt)) - nprods  # number of input proteins
+    nals = nactvs * nprods  # number of possible dyadic alleles
+    ind = 0
+    for (actv, prod) in Iterators.reverse(_abstraction(gt))
+        ind = ind * nals + ((prod - nin - 1) * nactvs + (actv - 1))
+    end
+    return ind + 1
+end
+
+function genotype(::Type{DyadicGenotype}, gns::Genes, prtns::Proteins, ind::Integer)
+    nactvs, nprods = _num_activators(prtns), _num_products(prtns)
+    nin = length(prtns) - nprods  # number of input proteins
+    nals = nactvs * nprods  # number of possible dyadic alleles
+    ngts = nals ^ length(gns)  # number of possible dyadic genotypes
+    @assert 1 <= ind <= ngts "index out of bound"
+
+    expr = Vector{Pair{Int, Int}}(undef, length(gns))
+    ind = ind - 1
+    for i in eachindex(expr)
+        al, ind = rem(ind, nals), div(ind, nals)
+        actv, prod = rem(al, nprods) + 1, div(al, nprods) + nin + 1
+        expr[i] = (actv => prod)
+    end
+    return DyadicGenotype(gns, prtns, expr)
+end
+
+"""
+    _default(::DyadicGenotype, gns::Genes, prtns::Proteins)
+
+Return a default genotype with the given underlying collection of genes `gns` and proteins
+`prtns`.
+
+The expression behavior of the genotype is defaulted to that the allele of every gene is
+triggered by the first protein activator and generates the first protein product in the
+underlying collection `prtns`.
+
+This method is only for internal use.
+"""
+_default(::Type{DyadicGenotype}, gns::Genes, prtns::Proteins) = genotype(DyadicGenotype, gns, prtns, 1)
 
 
 # ----------------------------------------------------------------
 # Generating a population of individuals represented by their genotypes
 
 """
-    randomgenotype(::Type{GT}, gns::Genes{G}, prtns::Proteins{P})::GT where {G, P, GT <:
-        AbstractGenotype{G, P}}
+    randomgenotype(::Type{GT}, gns::Genes, prtns::Proteins)::GT
+        where {GT <: AbstractGenotype}
 
 Return a randomly generated genotype of type `GT` from the underlying collection `gns` and
 `prtns`.
@@ -566,36 +634,31 @@ Return a randomly generated genotype of type `GT` from the underlying collection
 function randomgenotype end
 
 """
-    randomgenotype(::Type{DyadicGenotype{G, P}}, gns::Genes{G}, prtns::Proteins{P}
+    randomgenotype(::Type{DyadicGenotype}, gns::Genes{G}, prtns::Proteins{P}
         )::DyadicGenotype{G, P} where {G, P}
 
 Return a genotype where the expression activator/product is randomly sampled from all
 possible protein activators/products.
 """
-function randomgenotype(
-    ::Type{DyadicGenotype{G, P}},
-    gns::Genes{G},
-    prtns::Proteins{P}
-    ) where {G, P}
-
+function randomgenotype(::Type{DyadicGenotype}, gns::Genes, prtns::Proteins)
     actvs, prods = _index_activators(prtns), _index_products(prtns)
     expr = [Random.rand(actvs) => Random.rand(prods) for i in eachindex(gns)]
     return DyadicGenotype(gns, prtns, expr)
 end
 
 """
-    randompopulation(::Type{GT}, gns::Genes{G}, prtns::Proteins{P}, sz::Integer)::Vector{GT}
-        where {G, P, GT <: AbstractGenotype{G, P}}
+    randompopulation(::Type{GT}, gns::Genes, prtns::Proteins, sz::Integer)::Vector{GT}
+        where {GT <: AbstractGenotype}
 
 Return a population of randomly generated genotypes of type `GT` from the underlying
 collection `gns` and `prtns`.
 """
 function randompopulation(
     ::Type{GT},
-    gns::Genes{G},
-    prtns::Proteins{P},
+    gns::Genes,
+    prtns::Proteins,
     sz::Integer
-    ) where {G, P, GT <: AbstractGenotype{G, P}}
+    ) where {GT <: AbstractGenotype}
 
     return [randomgenotype(GT, gns, prtns) for i = 1:sz]
 end

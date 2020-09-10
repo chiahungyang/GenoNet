@@ -349,17 +349,17 @@ function model(pdm::PopDynamicsMode, vm::ViabilityMode, rm::ReproductionMode, mm
 end
 
 """
-    PreAllocPop{G, P}
+    PreAllocPop
 
 Pre-allocating the offspring population to model the evolution more efficiently.
 """
-struct PreAllocPop{G, P}
+struct PreAllocPop
     "genotype to be allocated"
-    GT::Type{<:AbstractGenotype{G, P}}
+    GT::Type{<:AbstractGenotype}
     "underlying collection of genes"
-    gs::Genes{G}
+    gs::Genes
     "underlying collection of proteins"
-    ps::Proteins{P}
+    ps::Proteins
     "population size"
     sz::Int
 end

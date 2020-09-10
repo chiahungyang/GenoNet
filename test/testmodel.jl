@@ -30,7 +30,7 @@ using Random
         end
         @test begin
             Random.seed!(12345)
-            offsp = [_default(DyadicGenotype{Int, Int}, gns, prtns) for i = 1:3]
+            offsp = [_default(DyadicGenotype, gns, prtns) for i = 1:3]
             reproduce!(offsp, popl, IdenticalReproductivity())
             offsp == [gt_inviable, gt_inviable, gt_viable]
         end
@@ -44,13 +44,13 @@ using Random
         end
         @test begin
             Random.seed!(12345)
-            dst = _default(DyadicGenotype{Int, Int}, gns, prtns)
+            dst = _default(DyadicGenotype, gns, prtns)
             mutate!(dst, gt_inviable, IndependentMutation(0.5))
             dst == DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (1 => 2), 3 => (3 => 4)))
         end
         @test_throws AssertionError begin
             Random.seed!(12345)
-            dst = _default(DyadicGenotype{Int, Int}, Genes([1, 2, 3]), prtns)
+            dst = _default(DyadicGenotype, Genes([1, 2, 3]), prtns)
             mutate!(dst, gt_inviable, IndependentMutation(0.5))
         end
     end
@@ -73,7 +73,7 @@ using Random
             popl = [DyadicGenotype(gns, prtns, als_viable),
                     DyadicGenotype(gns, prtns, als_inviable),
                     DyadicGenotype(gns, prtns, als_viable)]
-            offsp = [_default(DyadicGenotype{Int, Int}, gns, prtns) for i = 1:3]
+            offsp = [_default(DyadicGenotype, gns, prtns) for i = 1:3]
             isvb = similar(BitArray, 3)
             evolve!(popl, offsp, isvb, env, pdm, vm, rm, mm)
             popl == [DyadicGenotype(gns, prtns, Dict(1 => (3 => 2), 2 => (2 => 3), 3 => (3 => 4))),
@@ -95,6 +95,19 @@ using Random
             nextgen == [DyadicGenotype(gns, prtns, Dict(1 => (3 => 2), 2 => (2 => 3), 3 => (3 => 4))),
                         DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (2 => 4))),
                         DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (3 => 2)))]
+        end
+        @test begin
+            Random.seed!(12345)
+            popl = [DyadicGenotype(gns, prtns, als_viable),
+                    DyadicGenotype(gns, prtns, als_inviable),
+                    DyadicGenotype(gns, prtns, als_viable)]
+            offsp = [_default(DyadicGenotype, gns, prtns) for i = 1:3]
+            isvb = similar(BitArray, 3)
+            _evolve! = model(PreAllocPop(DyadicGenotype, gns, prtns, 3), pdm, vm, rm, mm)
+            _evolve!(popl, env)
+            popl == [DyadicGenotype(gns, prtns, Dict(1 => (3 => 2), 2 => (2 => 3), 3 => (3 => 4))),
+                     DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (2 => 4))),
+                     DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (3 => 2)))]
         end
     end
 
