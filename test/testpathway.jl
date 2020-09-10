@@ -199,4 +199,30 @@ using Random
         end
     end
 
+    @testset "Generators" begin
+        gns = Genes([1, 2])
+        prtns = Proteins([1, 2, 3], 1, 2)
+        gts = vec(collect(possiblegenotypes(DyadicGenotype, gns, prtns)))
+        @test gts == [DyadicGenotype(gns, prtns, Dict(1 => (1 => 2), 2 => (1 => 2))),
+                      DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (1 => 2))),
+                      DyadicGenotype(gns, prtns, Dict(1 => (1 => 2), 2 => (1 => 3))),
+                      DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (1 => 3)))]
+        als = Dict(1 => (1 => 2), 2 => (1 => 3))
+        gt = DyadicGenotype(gns, prtns, als)
+        muts = vec(collect(possiblemutants(gt)))
+        @test muts == [DyadicGenotype(gns, prtns, Dict(1 => (1 => 3), 2 => (1 => 3))),
+                       DyadicGenotype(gns, prtns, Dict(1 => (1 => 2), 2 => (1 => 2)))]
+    end
+
+    @testset "Relation between genotypes" begin
+        gns = Genes([1, 3, 2])
+        prtns = Proteins([1, 3, 2, 4], 1, 1)
+        als = Dict(1 => (1 => 3), 2 => (2 => 3), 3 => (3 => 4))
+        gt = DyadicGenotype(gns, prtns, als)
+        other = DyadicGenotype(gns, prtns, Dict(als..., 3 => (2 => 4)))
+        @test distance(gt, gt) == 0
+        @test distance(gt, other) == 1
+        @test_throws AssertionError distance(gt, DyadicGenotype(Genes([1, 2, 3]), prtns, als))
+    end
+
 end

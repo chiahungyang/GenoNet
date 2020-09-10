@@ -8,6 +8,8 @@ export AbstractPhenotype, AbstractEnv, AbstractGenotype,
        proteins, state, stimulated, essential, fatal, genes, allele, phenotype, genotype, iscompatible
 export BinaryPhenotype, BinaryEnv, DyadicGenotype
 export randomgenotype, randompopulation
+export possiblegenotypes, possiblemutants
+export distance
 
 
 # ----------------------------------------------------------------
@@ -662,6 +664,49 @@ function randompopulation(
 
     return [randomgenotype(GT, gns, prtns) for i = 1:sz]
 end
+
+
+# ----------------------------------------------------------------
+# Generator over a collection of genotypes
+
+"""
+    possiblegenotypes(::Type{DyadicGenotype}, gns::Genes, prtns::Proteins)::Generator
+
+Return an iterator over all possible genotypes with the underlying collection of genes
+`gns` and proteins `prtns`.
+"""
+function possiblegenotypes(::Type{DyadicGenotype}, gns::Genes, prtns::Proteins)
+    als = vec([actv => prod for actv in activators(prtns), prod in products(prtns)])
+    return (DyadicGenotype(gns, prtns, Dict(Iterators.zip(gns, expr)))
+            for expr in Iterators.product([als for g in gns]...))
+end
+
+"""
+    possiblemutants(gt::DyadicGenotype)::Generator
+
+Return an iterator over all possible mutants of genotype `gt`.
+"""
+function possiblemutants(gt::DyadicGenotype)
+    als = vec([actv => prod for actv in activators(proteins(gt)), prod in products(proteins(gt))])
+    expr = Dict(g => allele(gt, g) for g in genes(gt))
+    return (DyadicGenotype(genes(gt), proteins(gt), Dict(expr..., g => al))
+            for al in als, g in genes(gt) if al != allele(gt, g))
+end
+
+
+# ----------------------------------------------------------------
+# Relations between genotypes
+
+"""
+    distance(gt::GT, other::GT)::Int where {GT <: DyadicGenotype}
+
+Return the edit distance between genotype `gt` and `other`.
+"""
+function distance(gt::GT, other::GT) where {GT <: DyadicGenotype}
+    @assert iscompatible(gt, other) "inconsistent underlying collection of genes/proteins"
+    return sum(allele(gt, collect(genes(gt))) != allele(other, collect(genes(gt))))
+end
+
 
 # ----------------------------------------------------------------
 
