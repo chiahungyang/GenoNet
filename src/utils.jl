@@ -1,6 +1,8 @@
 module Utils
 
-export reachable
+using Arpack
+
+export reachable, leadingeigenvec
 
 """
     _traverse(adjlist::Dict{T, Vector{T}})::Function where {T}
@@ -85,5 +87,15 @@ function reachable(adjlist::Vector{<:Vector{<:Integer}}, srcs::Vector{<:Integer}
     for src in srcs trav!(visited, src) end
     return visited
 end
+
+"""
+    leadingeigenvec(mat::AbstractMatrix)::Vector
+
+Return the leading eigenvector of matrix `mat`.
+
+The leading eigenvector of a matrix is the one corresponding to the eigenvalue with the
+largest magnitude.
+"""
+leadingeigenvec(mat::AbstractMatrix) = vec(eigs(mat, nev=1, which=:LM)[2])
 
 end # module Utils
