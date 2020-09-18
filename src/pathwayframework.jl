@@ -7,7 +7,7 @@ export Genes, Proteins, index, input, output, activators, products
 export AbstractPhenotype, AbstractEnv, AbstractGenotype,
        proteins, state, stimulated, essential, fatal, genes, allele, phenotype, genotype, iscompatible
 export BinaryPhenotype, BinaryEnv, DyadicGenotype
-export randomgenotype, randompopulation
+export randomgenotype, randompopulation, defaultpopulation
 export possiblegenotypes, possiblemutants
 export distance
 
@@ -611,8 +611,8 @@ end
 """
     _default(::DyadicGenotype, gns::Genes, prtns::Proteins)
 
-Return a default genotype with the given underlying collection of genes `gns` and proteins
-`prtns`.
+Return a default/uninitialzed genotype with the given underlying collection of genes `gns`
+and proteins `prtns`.
 
 The expression behavior of the genotype is defaulted to that the allele of every gene is
 triggered by the first protein activator and generates the first protein product in the
@@ -665,6 +665,23 @@ function randompopulation(
     return [randomgenotype(GT, gns, prtns) for i = 1:sz]
 end
 
+"""
+    defaultpopulation(::Type{GT}, gns::Genes, prtns::Proteins, sz::Integer)::Vector{GT}
+        where {GT <: AbstractGenotype}
+
+Return a population of default/uninitialzed genotypes of type `GT` from the underlying
+collection `gns` and `prtns`.
+"""
+function defaultpopulation(
+    ::Type{GT},
+    gns::Genes,
+    prtns::Proteins,
+    sz::Integer
+    ) where {GT <: AbstractGenotype}
+
+    return [_default(GT, gns, prtns) for i = 1:sz]
+end
+
 
 # ----------------------------------------------------------------
 # Generator over a collection of genotypes
@@ -704,7 +721,7 @@ Return the edit distance between genotype `gt` and `other`.
 """
 function distance(gt::GT, other::GT) where {GT <: DyadicGenotype}
     @assert iscompatible(gt, other) "inconsistent underlying collection of genes/proteins"
-    return sum(allele(gt, collect(genes(gt))) != allele(other, collect(genes(gt))))
+    return sum(_abstraction(gt) .!= _abstraction(other))
 end
 
 
