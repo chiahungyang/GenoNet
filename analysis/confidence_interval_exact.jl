@@ -17,16 +17,16 @@ const CASE, = ARGS
 
 # Load empirical distributions of the predicted stationary distribution
 @info "Loading data......"
-const distr = CSV.File("../data/$CASE/apprxdistrsamples.csv") |> DataFrame
+const distr = CSV.File("../data/$CASE/exactdistrsamples.csv") |> DataFrame
 
 # Compute the confidence interval of the empirical frequencies for each viable genotype
 @info "Computing confidence interval......"
 confintv = combine(
-    groupby(distr, :gt),
+    groupby(distr, [:gt, :mutprob]),
     :freq => (fqs -> quantile(fqs, lwr)) => :lwr,
     :freq => (fqs -> quantile(fqs, upr)) => :upr
 )
 
 # Output the confidence interval/band
 @info "Outputing......"
-confintv |> CSV.write("../data/$CASE/confidence_interval_apprx.csv")
+confintv |> CSV.write("../data/$CASE/confidence_interval_exact.csv")

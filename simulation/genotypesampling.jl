@@ -1,23 +1,34 @@
 # Sample viable genotypes in long-term evolution under selection and mutation
 
+# This script takes TWO command-line arguments, where the first one is the focal case of
+# the underlying proteins/genes and the environmental condition, and the second one
+# indicates the set of parameters for the population genetic simulation
+
 @everywhere using GenoNet.PathwayFramework
 @everywhere using GenoNet.PopGenModel
 @everywhere using Random
 using Distributed, SharedArrays
-using DataFrames, CSV
+using JLD, DataFrames, CSV
 using Logging
 
 # Hyper-parameters
-const gns = Genes([1, 2, 3, 4])
-const prtns = Proteins([1, 2, 3, 4, 5], 1, 1)
-const popsz = 16  # population size
+@info "Loading parameters......"
+length(ARGS) == 2 || error("only two command-line arguments are accepted")
+const CASE, SIMLT = ARGS
 
-const env = BinaryEnv(prtns, [1], Int[], [5])
-const mutprob = 1e-1  # per-locus mutation probability
+const params = load("../data/$CASE/params.jld")
+const gns = Genes(params["gns"]...)
+const prtns = Proteins(params["prtns"]...)
+const env = BinaryEnv(prtns, params["env"]...)
+
+const simltparams = load("../data/popgensimlt/params/$SIMLT.jld")
+const popsz = simltparams["popsz"]  # population size
+const mutprob = simltparams["mutprob"]  # per-locus mutation probability
 
 const nexprs = 10000  # number of experiments
 const nlins = 1000  # number of lineages per experiment
-const ngens = round(Int, popsz / mutprob)  # number of generations per lineage
+# number of generations per lineage
+const ngens = load("../data/$CASE/convergencetime/$SIMLT.jld", "lowerbound")
 
 # Define the population genetic model
 const GT = DyadicGenotype
@@ -34,6 +45,10 @@ const _evolve! = model(preallocation, dynamicsmode, viabilitymode, reproductionm
 const samples = SharedArray{Int, 2}(nlins, nexprs)
 @sync @distributed for j = 1:nexprs
     anctr = randompopulation(GT, gns, prtns, popsz)  # randomly generated ancestors
+    while sum(isviable(gt, env, viabilitymode) for gt in anctr) == 0
+        anctr = randompopulation(GT, gns, prtns, popsz)
+    end
+
     popl = defaultpopulation(GT, gns, prtns, popsz)  # pre-allocated population to evolve
     isvb = BitArray(undef, popsz) # pre-allocated indicators of viability
 
@@ -50,4 +65,5 @@ end
 
 # Output the samples of viable genotypes
 @info "Outputing......"
-DataFrame(gt = vec(samples)) |> CSV.write("../data/genotypesamples_$mutprob.csv")
+ispath("../data/$CASE/genotypesamples/") || mkdir("../data/$CASE/genotypesamples")
+DataFrame(gt = vec(samples)) |> CSV.write("../data/$CASE/genotypesamples/$SIMLT.csv")

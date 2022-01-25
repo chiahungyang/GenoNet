@@ -1,20 +1,28 @@
 # Compute the stationary distrution derived from the transition matrix with various
 # mutation probabilities
 
-using CSV, DataFrames
+# This script takes ONE command-line argument, which is the focal case of underlying
+# proteins/genes and the environmental condition
+
+using CSV, DataFrames, JLD
 using GenoNet.PathwayFramework
 using GenoNet.Utils: leadingeigenvec
 using Logging
 
-const mutprobs = [1e-1, 1e-2, 1e-3]  # per-locus probabilities of interest
+length(ARGS) == 1 || error("only one command-line argument is accepted")
+const CASE, = ARGS
+
+# per-locus mutation probabilities of interest
+const mutprobs = [5e-1, 2e-1, 1e-1, 5e-2, 2e-2, 1e-2]
 
 # Load the viable genotypes and the underlying collection of genes/proteins
 @info "Loading data......"
-const viable = CSV.File("../data/viable_genotypes.csv") |> DataFrame
-const nviable, = size(viable)
+const viable = CSV.File("../data/$CASE/viable_genotypes.csv") |> DataFrame
+const nviable = size(viable, 1)
 
-const gns = Genes([1, 2, 3, 4])
-const prtns = Proteins([1, 2, 3, 4, 5], 1, 1)
+const params = load("../data/$CASE/params.jld")
+const gns = Genes(params["gns"]...)
+const prtns = Proteins(params["prtns"]...)
 const nals = length(activators(prtns)) * length(products(prtns))
 
 # For each per-locus mutation probability of interest, construct the transition matrix and
@@ -42,4 +50,4 @@ for prob in mutprobs
 end
 
 @info "Outputing......"
-distr |> CSV.write("../data/stationary_distribution_exact.csv")
+distr |> CSV.write("../data/$CASE/stationary_distribution_exact.csv")

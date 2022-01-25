@@ -2,7 +2,7 @@ module Utils
 
 using Arpack
 
-export reachable, leadingeigenvec
+export reachable, leadingeigenvec, variationdist
 
 """
     _traverse(adjlist::Dict{T, Vector{T}})::Function where {T}
@@ -97,5 +97,17 @@ The leading eigenvector of a matrix is the one corresponding to the eigenvalue w
 largest magnitude.
 """
 leadingeigenvec(mat::AbstractMatrix) = vec(eigs(mat, nev=1, which=:LM)[2])
+
+"""
+    variationdist(distr1::AbstractVector{<:Real}, distr2::AbstractVector{<:Real})
+
+Return the variation distance between two distributions.
+
+The variation distance is equivalently half of the L1 norm between two distributions.
+"""
+function variationdist(distr1::AbstractVector{<:Real}, distr2::AbstractVector{<:Real})
+    @assert length(distr1) == length(distr2) "the distributions must have the same space"
+    return 0.5 * sum(abs(p - q) for (p, q) in Iterators.zip(distr1, distr2))
+end
 
 end # module Utils

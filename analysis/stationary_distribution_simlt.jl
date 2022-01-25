@@ -1,34 +1,28 @@
 # Compute the long-term distribution of viable genotypes sampled from simulations
 
+# This script takes TWO command-line arguments, where the first one is the focal case of
+# the underlying proteins/genes and the environmental condition, and the second one
+# indicates the set of parameters that has been used for the population genetic simulation
+
 using CSV, DataFrames
 using StatsBase
 using Logging
 
-const mutprobs = [1e-1, 1e-2, 1e-3]
+length(ARGS) == 2 || error("only two command-line arguments are accepted")
+const CASE, SIMLT = ARGS
 
-# Load viable genotypes
+# Load all viable genotypes and the sampled genotypes
 @info "Loading data......"
-const viable = CSV.File("../data/viable_genotypes.csv") |> DataFrame
+const viable = CSV.File("../data/$CASE/viable_genotypes.csv") |> DataFrame
+const samples = CSV.File("../data/$CASE/genotypesamples/$SIMLT.csv") |> DataFrame
 
 # Compute the long-term distribution for simulations with different mutation probabilities
-const freqs = Dict{Float64, Vector{Float64}}()
-for prob in mutprobs
-    # Load samples of genotypes
-    @info "Loading data for μ = $prob ......"
-    samples = CSV.File("../data/genotypesamples_$prob.csv") |> DataFrame
-
-    # Obtain the  distribution
-    @info "Computing distribution for μ = $prob ......"
-    prop = proportionmap(samples.gt)
-    freqs[prob] = [haskey(prop, gt) ? prop[gt] : 0.0 for gt in viable.ind]
-end
+@info "Computing distribution of genotypes ......"
+prop = proportionmap(samples.gt)
+freqs = [haskey(prop, gt) ? prop[gt] : 0.0 for gt in viable.ind]
 
 # Output the long-term distribution for various mutation probabilities
-@info "Building output dataframe......"
-distr = DataFrame(gt = Int[], freq = Float64[], mutprob = Float64[])
-for prob in mutprobs
-    global distr = vcat(distr, DataFrame(gt = viable.ind, freq = freqs[prob], mutprob = prob))
-end
-
 @info "Outputing......"
-distr |> CSV.write("../data/stationary_distribution_simlt.csv")
+distr = DataFrame(gt = viable.ind, freq = freqs)
+ispath("../data/$CASE/stationary_distribution_simlt/") || mkdir("../data/$CASE/stationary_distribution_simlt")
+distr |> CSV.write("../data/$CASE/stationary_distribution_simlt/$SIMLT.csv")

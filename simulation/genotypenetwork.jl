@@ -1,12 +1,20 @@
 # Generate the edgelist of the genotype network
 
+# This script takes ONE command-line argument, which is the focal case of underlying
+# proteins/genes and the environmental condition
+
 using GenoNet.PathwayFramework
-using CSV
+using JLD, CSV
 using Logging
 
-const gns = Genes([1, 2, 3, 4])
-const prtns = Proteins([1, 2, 3, 4, 5], 1, 1)
-const env = BinaryEnv(prtns, [1], Int[], [5])
+@info "Loading parameters......"
+length(ARGS) == 1 || error("only one command-line argument is accepted")
+const CASE, = ARGS
+
+const params = load("../data/$CASE/params.jld")
+const gns = Genes(params["gns"]...)
+const prtns = Proteins(params["prtns"]...)
+const env = BinaryEnv(prtns, params["env"]...)
 
 @info "Start"
 
@@ -21,6 +29,4 @@ end
 
 # Output the edgelist of the genotype network
 @info "Outputing......"
-open("../data/genotype_network.csv", "w") do fp
-    edgelist |> CSV.write(fp)
-end
+edgelist |> CSV.write("../data/$CASE/genotype_network.csv")

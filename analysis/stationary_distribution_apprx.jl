@@ -1,18 +1,24 @@
 # Compute the stationary distribution under the small-mutation-probability approximation,
 # which is proportional to the eigenvector centrality in the neutral network
 
+# This script takes ONE command-line argument, which is the focal case of underlying
+# proteins/genes and the environmental condition
+
 using CSV
 using DataFrames
 using SparseArrays
 using GenoNet.Utils: leadingeigenvec
 using Logging
 
+length(ARGS) == 1 || error("only one command-line argument is accepted")
+const CASE, = ARGS
+
 # Load the viable genotypes and the edgelist of the genotype network
 @info "Loading data......"
-const edgelist = CSV.File("../data/genotype_network.csv") |> DataFrame
-const viable = CSV.File("../data/viable_genotypes.csv") |> DataFrame
+const edgelist = CSV.File("../data/$CASE/genotype_network.csv") |> DataFrame
+const viable = CSV.File("../data/$CASE/viable_genotypes.csv") |> DataFrame
 
-const nviable, = size(viable)
+const nviable = size(viable, 1)
 const ind = Dict(gt => i for (i, gt) in Iterators.enumerate(viable.ind))
 
 # Construct the adjacency matrix of the neutral network and compute its leading eigenvector
@@ -30,4 +36,4 @@ freqs = eigvec ./ sum(eigvec)
 distr = DataFrame(gt = viable.ind, freq = freqs)
 
 @info "Outputing......"
-distr |> CSV.write("../data/stationary_distribution_apprx.csv")
+distr |> CSV.write("../data/$CASE/stationary_distribution_apprx.csv")
